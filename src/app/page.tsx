@@ -87,7 +87,7 @@ export default function Home() {
             <div className="text-center max-w-2xl mx-auto mb-16">
               <h2 className="text-3xl font-bold tracking-tight mb-4">Why use Pathfind?</h2>
               <p className="text-lg text-muted-foreground">
-                We've rethinking the entire job application pipeline so you can focus on interviewing, not applying.
+                We&apos;ve rethinking the entire job application pipeline so you can focus on interviewing, not applying.
               </p>
             </div>
             
@@ -98,7 +98,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold mb-3">Semantic Matching</h3>
                 <p className="text-muted-foreground">
-                  Our AI doesn't just look for keywords. It understands your experience and matches it with job requirements semantically.
+                  Our AI doesn&apos;t just look for keywords. It understands your experience and matches it with job requirements semantically.
                 </p>
               </div>
               

@@ -1,10 +1,9 @@
 "use client";
 
-import { Bell, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { Badge } from "@/components/ui/badge";
+import { NotificationDropdown } from "@/components/shared/notification-dropdown";
 
 export function Topbar() {
   return (
@@ -24,13 +23,7 @@ export function Topbar() {
       </div>
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5 text-muted-foreground" />
-          <Badge className="absolute -top-1 -right-1 h-4 w-4 rounded-full p-0 flex items-center justify-center text-[10px] bg-primary">
-            3
-          </Badge>
-          <span className="sr-only">Toggle notifications</span>
-        </Button>
+        <NotificationDropdown />
       </div>
     </header>
   );

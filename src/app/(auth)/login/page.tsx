@@ -11,14 +11,6 @@ import { Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { loginSchema } from "@/lib/validations/auth";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"; // Let me use basic components since I haven't added the specific 'form' shadcn component yet. Actually, let's keep it simpler below.
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 

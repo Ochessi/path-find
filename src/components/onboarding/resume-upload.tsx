@@ -125,7 +125,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       {!file && (
         <div className="flex items-center justify-center">
           <p className="text-sm text-muted-foreground">
-            Don't have a resume? <Button variant="link" className="p-0 h-auto">Skip this step</Button>
+            Don&apos;t have a resume? <Button variant="link" className="p-0 h-auto">Skip this step</Button>
           </p>
         </div>
       )}

@@ -1,0 +1,61 @@
+"use client";
+
+import * as React from "react";
+import { Kanban, List, Search } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { KanbanBoard } from "@/components/application/kanban-board";
+import { ListView } from "@/components/application/list-view";
+
+export default function ApplicationsPage() {
+  const [searchTerm, setSearchTerm] = React.useState("");
+  const [view, setView] = React.useState("board");
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] gap-6 pb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Applications</h1>
+          <p className="text-muted-foreground mt-1">
+            Track and manage your job applications pipeline.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search companies, roles..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 h-10 w-full rounded-xl bg-card border-border/60"
+            />
+          </div>
+
+          <Tabs value={view} onValueChange={setView} className="hidden sm:block">
+            <TabsList className="h-10 bg-card border">
+              <TabsTrigger value="board" className="gap-2 rounded-lg data-[state=active]:bg-muted">
+                <Kanban className="h-4 w-4" />
+                Board
+              </TabsTrigger>
+              <TabsTrigger value="list" className="gap-2 rounded-lg data-[state=active]:bg-muted">
+                <List className="h-4 w-4" />
+                List
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-hidden">
+        {view === "board" ? (
+          <KanbanBoard searchTerm={searchTerm} />
+        ) : (
+          <ListView searchTerm={searchTerm} />
+        )}
+      </div>
+    </div>
+  );
+}

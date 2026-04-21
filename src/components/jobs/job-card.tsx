@@ -6,11 +6,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
 import { Bookmark, BookmarkCheck, MapPin, Building2, Clock, Sparkles } from "lucide-react";
 import { useJobStore } from "@/store/job.store";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
-export function JobCard({ job }: { job: Job }) {
-  const router = useRouter();
+interface JobCardProps {
+  job: Job;
+  isSelected?: boolean;
+  onClick?: () => void;
+}
+
+export function JobCard({ job, isSelected, onClick }: JobCardProps) {
   const { savedJobs, toggleSaveJob } = useJobStore();
   const isSaved = savedJobs.includes(job.id);
 
@@ -24,10 +28,12 @@ export function JobCard({ job }: { job: Job }) {
 
   return (
     <motion.div
-      whileHover={{ y: -4 }}
+      whileHover={{ y: -2 }}
       transition={{ duration: 0.2 }}
+      onClick={onClick}
+      className={`cursor-pointer rounded-xl transition-all`}
     >
-      <Card className="overflow-hidden flex flex-col h-full border-muted/60 shadow-sm hover:shadow-md transition-shadow">
+      <Card className={`overflow-hidden flex flex-col h-full shadow-sm transition-colors border-muted/60 hover:bg-muted/50 ${isSelected ? 'bg-muted/40' : ''}`}>
         <CardHeader className="p-5 pb-0">
           <div className="flex justify-between items-start gap-4">
             <div className="flex gap-3">
@@ -35,11 +41,10 @@ export function JobCard({ job }: { job: Job }) {
                 {job.companyLogo || job.company[0]}
               </div>
               <div>
-                <h3 className="font-semibold text-lg leading-tight line-clamp-1" title={job.title}>
+                <h3 className="font-semibold text-[15px] leading-tight line-clamp-1" title={job.title}>
                   {job.title}
                 </h3>
                 <div className="flex items-center gap-1.5 text-muted-foreground mt-1 text-sm">
-                  <Building2 className="h-3.5 w-3.5" />
                   <span className="truncate">{job.company}</span>
                 </div>
               </div>
@@ -61,47 +66,23 @@ export function JobCard({ job }: { job: Job }) {
         
         <CardContent className="p-5 flex-1 flex flex-col gap-4">
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge variant="secondary" className="bg-muted font-normal text-muted-foreground">
+            <Badge variant="secondary" className="bg-muted font-normal text-muted-foreground h-6 flex items-center">
               <MapPin className="h-3 w-3 mr-1" />
               {job.location}
             </Badge>
-            <Badge variant="secondary" className="bg-muted font-normal text-muted-foreground">
-              <Clock className="h-3 w-3 mr-1" />
-              {job.type}
-            </Badge>
-            <Badge variant="secondary" className="bg-muted font-normal text-muted-foreground">
-               {job.salary}
+            <Badge variant="secondary" className="bg-muted font-normal text-muted-foreground h-6 flex items-center">
+              Posted {job.postedDate}
             </Badge>
           </div>
           
-          <div className="flex flex-wrap gap-1.5 mt-auto pt-2">
-            {job.skills.slice(0, 4).map(skill => (
-              <span key={skill} className="text-[11px] px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-                {skill}
-              </span>
+          <div className="flex flex-wrap gap-2 mt-1">
+            <Badge variant="outline" className="font-normal text-[10px] h-5">{job.type}</Badge>
+            <Badge variant="outline" className="font-normal text-[10px] h-5">{job.experienceLevel}</Badge>
+            {job.skills.slice(0, 2).map((skill, i) => (
+              <Badge key={i} variant="outline" className="font-normal text-[10px] h-5 bg-muted/20">{skill}</Badge>
             ))}
-            {job.skills.length > 4 && (
-              <span className="text-[11px] px-2 py-0.5 rounded-full border border-border text-muted-foreground">
-                +{job.skills.length - 4}
-              </span>
-            )}
           </div>
         </CardContent>
-        
-        <CardFooter className="p-5 pt-0 border-t mt-auto flex items-center justify-between bg-muted/20">
-          <div className={`mt-5 px-2.5 py-1 rounded-full flex items-center gap-1.5 text-xs font-semibold ${getScoreColor(job.matchScore)}`}>
-            <Sparkles className="h-3.5 w-3.5" />
-            {job.matchScore}% Match
-          </div>
-          
-          <Button 
-            className="mt-5 rounded-lg" 
-            size="sm"
-            onClick={() => router.push(`/application/${job.id}`)}
-          >
-            Review & Apply
-          </Button>
-        </CardFooter>
       </Card>
     </motion.div>
   );
