@@ -31,17 +31,21 @@ export function JobCard({ job, isSelected, onClick }: JobCardProps) {
       whileHover={{ y: -2 }}
       transition={{ duration: 0.2 }}
       onClick={onClick}
-      className={`cursor-pointer rounded-xl transition-all`}
+      className={`cursor-pointer rounded-[20px] transition-all`}
     >
-      <Card className={`overflow-hidden flex flex-col h-full shadow-sm transition-colors border-muted/60 hover:bg-muted/50 ${isSelected ? 'bg-muted/40' : ''}`}>
+      <Card className={`overflow-hidden flex flex-col h-full shadow-sm transition-colors border border-border/50 hover:bg-card/80 ${isSelected ? 'bg-card/60 ring-1 ring-border/50' : 'bg-transparent'}`}>
         <CardHeader className="p-5 pb-0">
           <div className="flex justify-between items-start gap-4">
             <div className="flex gap-3">
-              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-xl text-primary shrink-0">
-                {job.companyLogo || job.company[0]}
+              <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center font-bold text-xl text-primary shrink-0 overflow-hidden">
+                {job.companyLogo ? (
+                   <img src={job.companyLogo} alt={job.company} className="object-cover w-full h-full" />
+                ) : (
+                   <span className="text-primary">{job.company[0]}</span>
+                )}
               </div>
               <div>
-                <h3 className="font-semibold text-[15px] leading-tight line-clamp-1" title={job.title}>
+                <h3 className="font-semibold text-[15px] leading-tight line-clamp-1 text-white" title={job.title}>
                   {job.title}
                 </h3>
                 <div className="flex items-center gap-1.5 text-muted-foreground mt-1 text-sm">
@@ -53,7 +57,7 @@ export function JobCard({ job, isSelected, onClick }: JobCardProps) {
             <Button
               variant="ghost"
               size="icon"
-              className={`h-8 w-8 shrink-0 rounded-full ${isSaved ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+              className={`h-8 w-8 shrink-0 rounded-full ${isSaved ? "text-primary" : "text-muted-foreground hover:text-white"}`}
               onClick={(e) => {
                 e.stopPropagation();
                 toggleSaveJob(job.id);
@@ -66,20 +70,20 @@ export function JobCard({ job, isSelected, onClick }: JobCardProps) {
         
         <CardContent className="p-5 flex-1 flex flex-col gap-4">
           <div className="flex flex-wrap gap-2 text-xs">
-            <Badge variant="secondary" className="bg-muted font-normal text-muted-foreground h-6 flex items-center">
+            <Badge variant="secondary" className="bg-muted/40 font-normal text-muted-foreground h-6 flex items-center">
               <MapPin className="h-3 w-3 mr-1" />
               {job.location}
             </Badge>
-            <Badge variant="secondary" className="bg-muted font-normal text-muted-foreground h-6 flex items-center">
+            <Badge variant="secondary" className="bg-muted/40 font-normal text-muted-foreground h-6 flex items-center">
               Posted {job.postedDate}
             </Badge>
           </div>
           
           <div className="flex flex-wrap gap-2 mt-1">
-            <Badge variant="outline" className="font-normal text-[10px] h-5">{job.type}</Badge>
-            <Badge variant="outline" className="font-normal text-[10px] h-5">{job.experienceLevel}</Badge>
+            <Badge variant="outline" className="font-normal text-[11px] h-[22px] border-border/50 bg-card/20">{job.type}</Badge>
+            <Badge variant="outline" className="font-normal text-[11px] h-[22px] border-border/50 bg-card/20">{job.experienceLevel}</Badge>
             {job.skills.slice(0, 2).map((skill, i) => (
-              <Badge key={i} variant="outline" className="font-normal text-[10px] h-5 bg-muted/20">{skill}</Badge>
+              <Badge key={i} variant="outline" className="font-normal text-[11px] h-[22px] border-border/50 bg-card/20">{skill}</Badge>
             ))}
           </div>
         </CardContent>
