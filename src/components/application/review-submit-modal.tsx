@@ -12,6 +12,8 @@ import {
   Loader2,
   AlertCircle,
   Building2,
+  BookmarkPlus,
+  BookmarkCheck,
 } from "lucide-react";
 
 import {
@@ -41,6 +43,8 @@ export function ReviewSubmitModal({
   const { addApplication } = useApplicationStore();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isSuccess, setIsSuccess] = React.useState(false);
+  const [isSavingTemplate, setIsSavingTemplate] = React.useState(false);
+  const [isTemplateSaved, setIsTemplateSaved] = React.useState(false);
 
   const checklist = [
     {
@@ -94,6 +98,19 @@ export function ReviewSubmitModal({
       // Reset state after transition
       setTimeout(() => setIsSuccess(false), 500);
     }, 1500);
+  };
+
+  const handleSaveTemplate = async () => {
+    setIsSavingTemplate(true);
+    // Simulate API call to save templates
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setIsSavingTemplate(false);
+    setIsTemplateSaved(true);
+    
+    // Reset the success state after a few seconds
+    setTimeout(() => {
+      setIsTemplateSaved(false);
+    }, 3000);
   };
 
   return (
@@ -185,28 +202,45 @@ export function ReviewSubmitModal({
                 </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className="sm:justify-between items-center gap-4">
                 <Button
-                  variant="outline"
-                  onClick={() => onOpenChange(false)}
-                  disabled={isSubmitting}
+                  variant="ghost"
+                  onClick={handleSaveTemplate}
+                  disabled={isSubmitting || isSavingTemplate || isTemplateSaved}
+                  className={isTemplateSaved ? "text-emerald-600" : "text-muted-foreground"}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px]"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
+                  {isSavingTemplate ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : isTemplateSaved ? (
+                    <BookmarkCheck className="h-4 w-4 mr-2" />
                   ) : (
-                    <>
-                      <SendHorizonal className="h-4 w-4 mr-2" />
-                      Submit Application
-                    </>
+                    <BookmarkPlus className="h-4 w-4 mr-2" />
                   )}
+                  {isTemplateSaved ? "Saved as Template" : "Save as Template"}
                 </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => onOpenChange(false)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={isSubmitting}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px]"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <SendHorizonal className="h-4 w-4 mr-2" />
+                        Submit Application
+                      </>
+                    )}
+                  </Button>
+                </div>
               </DialogFooter>
             </motion.div>
           )}

@@ -7,7 +7,7 @@ import {
   FileText,
   Settings,
   HelpCircle,
-  Menu,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,9 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navItems = [
-  { name: "Jobs", href: "/dashboard", icon: Briefcase },
-  { name: "Applications", href: "/applications", icon: FileText },
-  { name: "Profile", href: "/profile", icon: LayoutDashboard },
+  { name: "Overview", href: "/dashboard", icon: LayoutDashboard },
+  { name: "Job Discovery", href: "/jobs", icon: Search },
+  { name: "Applications", href: "/applications", icon: Briefcase },
+  { name: "Profile", href: "/profile", icon: FileText },
   { name: "Settings", href: "/settings", icon: Settings },
   { name: "Help", href: "/help", icon: HelpCircle },
 ];
@@ -40,7 +41,10 @@ export function Sidebar() {
 
       <nav className="flex-1 space-y-1 p-4">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            item.href === "/dashboard"
+              ? pathname === "/dashboard"
+              : pathname.startsWith(item.href);
           return (
             <Link key={item.name} href={item.href}>
               <span

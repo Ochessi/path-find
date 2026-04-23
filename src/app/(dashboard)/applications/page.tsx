@@ -8,10 +8,13 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { KanbanBoard } from "@/components/application/kanban-board";
 import { ListView } from "@/components/application/list-view";
+import { ManualApplicationModal } from "@/components/application/manual-application-modal";
+import { Plus } from "lucide-react";
 
 export default function ApplicationsPage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [view, setView] = React.useState("board");
+  const [manualModalOpen, setManualModalOpen] = React.useState(false);
 
   return (
     <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] gap-6 pb-6">
@@ -34,7 +37,16 @@ export default function ApplicationsPage() {
             />
           </div>
 
-          <Tabs value={view} onValueChange={setView} className="hidden sm:block">
+          <Button
+            onClick={() => setManualModalOpen(true)}
+            size="sm"
+            className="h-10 rounded-xl gap-2 bg-emerald-600 hover:bg-emerald-700 text-white hidden sm:flex"
+          >
+            <Plus className="h-4 w-4" />
+            Add Application
+          </Button>
+
+          <Tabs value={view} onValueChange={setView} className="hidden lg:block">
             <TabsList className="h-10 bg-card border">
               <TabsTrigger value="board" className="gap-2 rounded-lg data-[state=active]:bg-muted">
                 <Kanban className="h-4 w-4" />
@@ -56,6 +68,11 @@ export default function ApplicationsPage() {
           <ListView searchTerm={searchTerm} />
         )}
       </div>
+
+      <ManualApplicationModal
+        open={manualModalOpen}
+        onOpenChange={setManualModalOpen}
+      />
     </div>
   );
 }
