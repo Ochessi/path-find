@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { formatDistanceToNow, parseISO } from "date-fns";
 import { 
   Bell, 
-  Check, 
+  Settings,
   Sparkles, 
   RefreshCw, 
   Clock, 
@@ -16,12 +15,9 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { sampleNotifications } from "@/lib/data/applications";
 import { Notification } from "@/types";
 
@@ -32,25 +28,32 @@ const iconMap: Record<Notification["type"], React.ReactNode> = {
   system: <Info className="h-4 w-4 text-violet-500" />,
 };
 
+// For demonstrating the empty state as seen in the image, you might want to switch 
+// between empty and populated states, but let's implement the layout assuming it can be empty
+// Set to true to test empty state
+const SHOW_EMPTY_STATE = true; 
+
 export function NotificationDropdown() {
   const router = useRouter();
   const [notifications, setNotifications] = React.useState<Notification[]>(
-    sampleNotifications
+    SHOW_EMPTY_STATE ? [] : sampleNotifications
   );
+  
+  // Also showing the empty state unread count as 0 like in the screenshot
+  const [activeTab, setActiveTab] = React.useState("all");
 
   const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const markAllAsRead = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
 
   const handleNotificationClick = (actionUrl?: string) => {
     if (actionUrl) {
       router.push(actionUrl);
     }
   };
+
+  const filteredNotifications = notifications.filter(n => {
+    if (activeTab === "unread") return !n.read;
+    return true;
+  });
 
   return (
     <DropdownMenu>
@@ -62,67 +65,112 @@ export function NotificationDropdown() {
         <span className="sr-only">Notifications</span>
       </DropdownMenuTrigger>
       
-      <DropdownMenuContent align="end" className="w-[380px] rounded-2xl p-0">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 bg-muted/20 rounded-t-2xl">
-          <DropdownMenuLabel className="p-0 font-semibold text-base">
-            Notifications
-          </DropdownMenuLabel>
-          {unreadCount > 0 && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={markAllAsRead}
-              className="h-auto p-0 text-xs text-primary hover:text-primary hover:bg-transparent"
-            >
-              Mark all as read
+      {/* 
+        Matches the black/dark popup look with the tabs layout seen in the image.
+        Dimensions and styling approximated to match "All" / "Unread" toggle and exact layout.
+      */}
+      <DropdownMenuContent align="end" className="w-[380px] rounded-2xl p-0 bg-[#0A0A0A] border-border/40">
+        <div className="flex flex-col p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-base font-semibold tracking-tight text-white/90">
+              Notifications
+            </span>
+            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-md hover:bg-white/10 text-muted-foreground hover:text-white">
+              <Settings className="h-4 w-4" />
             </Button>
-          )}
-        </div>
-        
-        <DropdownMenuGroup className="max-h-[400px] overflow-y-auto py-1">
-          {notifications.length === 0 ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">
-              You&apos;re all caught up!
+          </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full bg-[#18181A] rounded-xl h-9 p-1 border border-white/5">
+              <TabsTrigger 
+                value="all" 
+                className="w-full rounded-lg text-xs font-medium text-muted-foreground data-[state=active]:bg-[#27272A] data-[state=active]:text-white transition-all"
+              >
+                All
+              </TabsTrigger>
+              <TabsTrigger 
+                value="unread" 
+                className="w-full rounded-lg text-xs font-medium text-muted-foreground data-[state=active]:bg-[#27272A] data-[state=active]:text-white transition-all"
+              >
+                Unread ({unreadCount})
+              </TabsTrigger>
+            </TabsList>
+            
+            <div className="mt-4 min-h-[250px] flex flex-col">
+              <TabsContent value="all" className="m-0 flex-1 flex flex-col outline-none">
+                {filteredNotifications.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <NotificationList items={filteredNotifications} onClick={handleNotificationClick} />
+                )}
+              </TabsContent>
+              <TabsContent value="unread" className="m-0 flex-1 flex flex-col outline-none">
+                {filteredNotifications.length === 0 ? (
+                  <EmptyState />
+                ) : (
+                  <NotificationList items={filteredNotifications} onClick={handleNotificationClick} />
+                )}
+              </TabsContent>
             </div>
-          ) : (
-             notifications.map((notification) => (
-                <DropdownMenuItem 
-                  key={notification.id}
-                  className={`flex items-start gap-4 p-4 cursor-pointer focus:bg-muted ${!notification.read ? 'bg-primary/5' : ''}`}
-                  onClick={() => handleNotificationClick(notification.actionUrl)}
-                >
-                  <div className={`shrink-0 mt-0.5 p-1.5 rounded-full ${!notification.read ? 'bg-background shadow-sm ring-1 ring-border' : 'bg-muted'}`}>
-                    {iconMap[notification.type]}
-                  </div>
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                       <p className={`text-sm leading-none ${!notification.read ? 'font-semibold' : 'font-medium'}`}>
-                         {notification.title}
-                       </p>
-                       <span className="text-[10px] text-muted-foreground whitespace-nowrap">
-                         {notification.createdAt}
-                       </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground line-clamp-2">
-                      {notification.message}
-                    </p>
-                  </div>
-                  {!notification.read && (
-                    <div className="shrink-0 mt-1 h-2 w-2 rounded-full bg-primary" />
-                  )}
-                </DropdownMenuItem>
-             ))
-          )}
-        </DropdownMenuGroup>
-        
-        <DropdownMenuSeparator className="m-0" />
-        
-        <div className="p-2">
-           <Button variant="ghost" className="w-full text-xs h-8 justify-center rounded-xl text-muted-foreground hover:text-foreground">
-              View all notifications
-           </Button>
+          </Tabs>
         </div>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center py-10 space-y-4">
+      <div className="h-16 w-16 bg-[#18181A] border border-white/5 rounded-2xl flex items-center justify-center shadow-sm">
+        <Bell className="h-6 w-6 text-white/40" />
+      </div>
+      <div className="space-y-1.5 text-center">
+        <p className="text-sm font-medium text-white/90">No notifications</p>
+        <p className="text-xs text-muted-foreground">
+          You&apos;re all caught up! Check back later.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function NotificationList({ 
+  items, 
+  onClick 
+}: { 
+  items: Notification[]; 
+  onClick: (url?: string) => void;
+}) {
+  return (
+    <div className="flex flex-col gap-1 overflow-y-auto max-h-[300px]">
+      {items.map((notification) => (
+        <div 
+          key={notification.id}
+          className={`group relative flex items-start gap-4 p-3 rounded-xl cursor-pointer hover:bg-white/5 transition-colors ${!notification.read ? 'bg-white/5' : ''}`}
+          onClick={() => onClick(notification.actionUrl)}
+        >
+          <div className="shrink-0 mt-0.5 p-1.5 rounded-full bg-[#18181A] border border-white/5">
+            {iconMap[notification.type]}
+          </div>
+          <div className="space-y-1 flex-1">
+            <div className="flex items-center justify-between gap-2">
+              <p className={`text-sm leading-tight text-white/90 ${!notification.read ? 'font-semibold' : 'font-medium'}`}>
+                {notification.title}
+              </p>
+              <span className="text-[10px] text-muted-foreground whitespace-nowrap">
+                {notification.createdAt}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {notification.message}
+            </p>
+          </div>
+          {!notification.read && (
+             <div className="absolute top-1/2 -right-1 -translate-y-1/2 h-1.5 w-1.5 rounded-full bg-primary" />
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
