@@ -24,87 +24,75 @@ import { Job } from "@/types";
 interface AiCoverLetterEditorProps {
   job: Job;
   isGenerating: boolean;
+  content?: string;
+  tone: "professional" | "enthusiastic" | "conversational";
+  onToneChange: (tone: "professional" | "enthusiastic" | "conversational") => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
+  onContentChange?: (value: string) => void;
 }
 
-type Tone = "professional" | "friendly" | "confident";
+type Tone = "professional" | "enthusiastic" | "conversational";
 
-const toneConfig: Record<Tone, { label: string; icon: React.ReactNode; description: string }> = {
+const toneConfig: Record<Tone, { label: string; icon: React.ReactNode }> = {
   professional: {
     label: "Professional",
     icon: <Briefcase className="h-3.5 w-3.5" />,
-    description: "Formal and polished",
   },
-  friendly: {
+  enthusiastic: {
     label: "Friendly",
     icon: <Smile className="h-3.5 w-3.5" />,
-    description: "Warm and approachable",
   },
-  confident: {
+  conversational: {
     label: "Confident",
     icon: <Zap className="h-3.5 w-3.5" />,
-    description: "Bold and assertive",
   },
 };
 
-function generateCoverLetter(job: Job, tone: Tone): string[] {
-  const greetings: Record<Tone, string> = {
-    professional: `Dear Hiring Manager at ${job.company},`,
-    friendly: `Hello ${job.company} team!`,
-    confident: `Dear ${job.company} Hiring Team,`,
+function getDefaultCoverLetter(job: Job, tone: Tone) {
+  const bodyMap: Record<Tone, string> = {
+    professional: `I am writing to express my strong interest in the ${job.title} position at ${job.company}. With extensive experience in ${job.skills.slice(0, 3).join(", ")}, I am confident my background aligns well with your needs. In my current role, I architect scalable solutions, collaborate with cross-functional teams, and deliver measurable results that drive business growth.`,
+    enthusiastic: `I'm thrilled to apply for the ${job.title} role at ${job.company}! My experience with ${job.skills.slice(0, 2).join(" and ")} has taught me how to build products that delight users and support fast-moving teams. I enjoy working in collaborative environments and am excited about the opportunity to help your ${job.industry.toLowerCase()} team grow.`,
+    conversational: `I’m applying for the ${job.title} role because I know I can make an immediate impact. My background includes building production-ready systems using ${job.skills.slice(0, 3).join(", ")}, leading teams, and solving hard problems with strong attention to business outcomes. I’m ready to bring that same energy to ${job.company}.`,
   };
 
-  const intros: Record<Tone, string> = {
-    professional: `I am writing to express my strong interest in the ${job.title} position at ${job.company}. With extensive experience in ${job.skills.slice(0, 3).join(", ")}, I am confident that my background aligns well with your team's needs and the requirements outlined for this role.`,
-    friendly: `I'm thrilled to apply for the ${job.title} role at ${job.company}! As someone who's passionate about ${job.skills.slice(0, 2).join(" and ")}, I couldn't be more excited about the opportunity to contribute to your ${job.industry.toLowerCase()} team.`,
-    confident: `I'm applying for the ${job.title} position at ${job.company} because I know I can make an immediate impact. My deep expertise in ${job.skills.slice(0, 3).join(", ")} positions me uniquely to tackle the challenges your team faces.`,
-  };
+  const greeting = tone === "professional"
+    ? `Dear Hiring Manager at ${job.company},`
+    : tone === "enthusiastic"
+    ? `Hello ${job.company} team!`
+    : `Dear ${job.company} Hiring Team,`;
 
-  const bodies: Record<Tone, string> = {
-    professional: `In my current role, I have successfully delivered complex projects that directly align with the requirements you've described. My experience spans ${job.skills.join(", ")}, and I have consistently demonstrated the ability to architect scalable solutions, collaborate effectively with cross-functional teams, and drive measurable business outcomes. I am particularly drawn to ${job.company}'s mission and would welcome the opportunity to contribute to your continued innovation in the ${job.industry.toLowerCase()} space.`,
-    friendly: `What excites me most about this role is the chance to work with ${job.skills.slice(0, 2).join(" and ")} in a ${job.industry.toLowerCase()} context. In my career, I've had the joy of building products that real people use and love, and I'd bring that same energy and craftsmanship to everything I do at ${job.company}. I'm a firm believer that great software comes from great collaboration, and I'd love to be part of your team.`,
-    confident: `My track record speaks for itself: I've architected and shipped production systems using ${job.skills.slice(0, 3).join(", ")}, led high-performing teams, and consistently exceeded expectations. At ${job.company}, I see an opportunity to apply these strengths at scale. The ${job.title} role demands someone who can hit the ground running — that's exactly what I do. I bring not just technical depth, but the strategic thinking to align engineering decisions with business goals.`,
-  };
+  const closing = tone === "professional"
+    ? `I would appreciate the opportunity to discuss how my experience can contribute to ${job.company}. Thank you for considering my application.`
+    : tone === "enthusiastic"
+    ? `I would love the chance to chat about how I can support ${job.company}'s next big milestone. Thank you for your consideration!`
+    : `I’m excited about the opportunity and would welcome the chance to discuss how I can contribute to ${job.company}. Thank you for your time.`;
 
-  const closings: Record<Tone, string> = {
-    professional: `I would be grateful for the opportunity to discuss how my experience and skills can contribute to ${job.company}'s success. I am available for an interview at your earliest convenience and look forward to the possibility of joining your team.`,
-    friendly: `I'd love to chat more about how I can contribute to the amazing work happening at ${job.company}. I'm flexible with timing and excited about the possibility of joining your team. Thanks so much for considering my application!`,
-    confident: `I'm ready to bring my expertise to ${job.company} and deliver results from day one. Let's connect to discuss how I can drive your team's next major initiative forward. I look forward to speaking with you soon.`,
-  };
-
-  return [greetings[tone], intros[tone], bodies[tone], closings[tone], "Best regards,\nAlex Johnson"];
+  return `${greeting}\n\n${bodyMap[tone]}\n\n${closing}\n\nBest regards,\nAlex Johnson`;
 }
 
-export function AiCoverLetterEditor({ job, isGenerating }: AiCoverLetterEditorProps) {
-  const [tone, setTone] = React.useState<Tone>("professional");
+export function AiCoverLetterEditor({
+  job,
+  isGenerating,
+  content,
+  tone,
+  onToneChange,
+  onRegenerate,
+  isRegenerating,
+  onContentChange,
+}: AiCoverLetterEditorProps) {
   const [isEditing, setIsEditing] = React.useState(false);
-  const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
-  const [editingParagraph, setEditingParagraph] = React.useState<number | null>(null);
-
-  const paragraphs = React.useMemo(() => generateCoverLetter(job, tone), [job, tone]);
-  const [editedParagraphs, setEditedParagraphs] = React.useState(paragraphs);
+  const [editedContent, setEditedContent] = React.useState(content ?? getDefaultCoverLetter(job, tone));
 
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setEditedParagraphs(paragraphs);
-  }, [paragraphs]);
-
-  const handleRegenerate = async () => {
-    setIsRegenerating(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setIsRegenerating(false);
-    setEditedParagraphs(paragraphs);
-  };
+    setEditedContent(content ?? getDefaultCoverLetter(job, tone));
+  }, [content, job, tone]);
 
   const handleCopy = () => {
     setCopied(true);
-    navigator.clipboard?.writeText(editedParagraphs.join("\n\n"));
+    navigator.clipboard?.writeText(editedContent);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleToneChange = (newTone: Tone) => {
-    setTone(newTone);
-    setEditingParagraph(null);
   };
 
   if (isGenerating) {
@@ -137,10 +125,9 @@ export function AiCoverLetterEditor({ job, isGenerating }: AiCoverLetterEditorPr
 
   return (
     <div className="p-6 space-y-6">
-      {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Badge className="bg-violet-500/10 text-violet-600 dark:text-violet-400 border-0 gap-1">
+          <Badge className="bg-violet-500/10 text-violet-600 border-0 gap-1">
             <Sparkles className="h-3 w-3" />
             AI-Generated
           </Badge>
@@ -150,10 +137,7 @@ export function AiCoverLetterEditor({ job, isGenerating }: AiCoverLetterEditorPr
             variant="ghost"
             size="sm"
             className="h-8 rounded-lg gap-1.5 text-xs"
-            onClick={() => {
-              setIsEditing(!isEditing);
-              setEditingParagraph(null);
-            }}
+            onClick={() => setIsEditing((prev) => !prev)}
           >
             {isEditing ? (
               <>
@@ -189,45 +173,43 @@ export function AiCoverLetterEditor({ job, isGenerating }: AiCoverLetterEditorPr
             variant="ghost"
             size="sm"
             className="h-8 rounded-lg gap-1.5 text-xs"
-            onClick={handleRegenerate}
-            disabled={isRegenerating}
+            onClick={onRegenerate}
+            disabled={!onRegenerate || isRegenerating}
           >
             {isRegenerating ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
-              <RotateCcw className="h-3.5 w-3.5" />
+              <>
+                <RotateCcw className="h-3.5 w-3.5" />
+                Regenerate
+              </>
             )}
-            Regenerate
           </Button>
         </div>
       </div>
 
-      {/* Tone selector */}
       <div className="space-y-2">
         <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Tone
         </span>
         <div className="flex gap-2">
-          {(Object.entries(toneConfig) as [Tone, typeof toneConfig[Tone]][]).map(
-            ([key, config]) => (
-              <button
-                key={key}
-                onClick={() => handleToneChange(key)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
-                  tone === key
-                    ? "border-violet-500 bg-violet-500/10 text-violet-600 dark:text-violet-400"
-                    : "border-border hover:border-violet-500/50 text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                {config.icon}
-                <span className="hidden sm:inline">{config.label}</span>
-              </button>
-            )
-          )}
+          {Object.entries(toneConfig).map(([key, config]) => (
+            <button
+              key={key}
+              onClick={() => onToneChange(key as Tone)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-all ${
+                key === tone
+                  ? "border-violet-500 bg-violet-500/10 text-violet-600"
+                  : "border-border hover:border-violet-500/50 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {config.icon}
+              <span className="hidden sm:inline">{config.label}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Cover letter content */}
       <AnimatePresence mode="wait">
         {isRegenerating ? (
           <motion.div
@@ -239,7 +221,7 @@ export function AiCoverLetterEditor({ job, isGenerating }: AiCoverLetterEditorPr
           >
             <Loader2 className="h-5 w-5 animate-spin text-violet-500" />
             <span className="text-sm text-muted-foreground">
-              Regenerating with {toneConfig[tone].label.toLowerCase()} tone...
+              Regenerating cover letter...
             </span>
           </motion.div>
         ) : (
@@ -250,41 +232,19 @@ export function AiCoverLetterEditor({ job, isGenerating }: AiCoverLetterEditorPr
             exit={{ opacity: 0 }}
             className="space-y-4 bg-card border rounded-2xl p-6"
           >
-            {editedParagraphs.map((para, idx) => (
-              <motion.div
-                key={idx}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.08 }}
-                className="group relative"
-              >
-                {isEditing && editingParagraph === idx ? (
-                  <Textarea
-                    value={para}
-                    onChange={(e) => {
-                      const updated = [...editedParagraphs];
-                      updated[idx] = e.target.value;
-                      setEditedParagraphs(updated);
-                    }}
-                    onBlur={() => setEditingParagraph(null)}
-                    rows={4}
-                    className="text-sm leading-relaxed resize-none"
-                    autoFocus
-                  />
-                ) : (
-                  <p
-                    className={`text-sm leading-relaxed whitespace-pre-line ${
-                      isEditing
-                        ? "cursor-pointer hover:bg-muted/50 rounded-lg p-2 -m-2 transition-colors"
-                        : ""
-                    } ${idx === 0 ? "font-medium" : ""}`}
-                    onClick={() => isEditing && setEditingParagraph(idx)}
-                  >
-                    {para}
-                  </p>
-                )}
-              </motion.div>
-            ))}
+            {isEditing ? (
+              <Textarea
+                value={editedContent}
+                onChange={(e) => {
+                  setEditedContent(e.target.value);
+                  onContentChange?.(e.target.value);
+                }}
+                rows={18}
+                className="text-sm leading-relaxed resize-none"
+              />
+            ) : (
+              <p className="text-sm leading-relaxed whitespace-pre-line">{editedContent}</p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

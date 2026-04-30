@@ -16,33 +16,108 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { sampleJobs } from "@/lib/data/jobs";
 import { JobDescriptionPanel } from "@/components/application/job-description-panel";
 import { AiResumeEditor } from "@/components/application/ai-resume-editor";
 import { AiCoverLetterEditor } from "@/components/application/ai-cover-letter-editor";
 import { FormAutofillPreview } from "@/components/application/form-autofill-preview";
 import { ReviewSubmitModal } from "@/components/application/review-submit-modal";
+import { sampleJobs } from "@/lib/data/jobs";
+import { Job } from "@/types";
+
+function generateResumeContent(job: Job) {
+  return `Professional Summary:\nHighly motivated ${job.experienceLevel}-level professional with strong experience in ${job.skills.slice(0, 3).join(", ")}. Proven success designing and delivering scalable solutions for ${job.industry} teams.\n\nExperience Highlights:\n- Built performant user experiences and optimized workflows for ${job.company}.\n- Collaborated across product, design, and engineering to ship high-impact features.\n- Leveraged ${job.skills.slice(0, 3).join(", ")} to reduce time to market and improve reliability.\n\nSkills:\n${job.skills.join(", ")}`;
+}
+
+function generateCoverLetterContent(job: Job, tone: "professional" | "enthusiastic" | "conversational") {
+  const intro =
+    tone === "professional"
+      ? `Dear Hiring Manager at ${job.company},`
+      : tone === "enthusiastic"
+      ? `Hello ${job.company} team!`
+      : `Dear ${job.company} Hiring Team,`;
+
+  const body =
+    tone === "professional"
+      ? `I am excited to apply for the ${job.title} role at ${job.company}. My background in ${job.skills.slice(0, 3).join(", ")} and experience working on ${job.industry.toLowerCase()} products make me a strong match for this role.`
+      : tone === "enthusiastic"
+      ? `I’m thrilled by the opportunity to join ${job.company} as a ${job.title}. I love working with ${job.skills.slice(0, 2).join(" and ")} and building products that make a real impact.`
+      : `I’m applying for the ${job.title} role because I know I can hit the ground running. My experience with ${job.skills.slice(0, 3).join(", ")} fits the outcomes ${job.company} is aiming for.`;
+
+  const closing =
+    tone === "professional"
+      ? `I would welcome the opportunity to discuss how I can contribute to ${job.company}. Thank you for your consideration.`
+      : tone === "enthusiastic"
+      ? `I’d love to chat further about how I can support ${job.company}'s next phase of growth. Thank you for considering my application!`
+      : `I’m excited about the opportunity and would welcome the chance to discuss how I can contribute to ${job.company}.`;
+
+  return `${intro}\n\n${body}\n\n${closing}\n\nBest regards,\nAlex Johnson`;
+}
 
 export default function ApplicationPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = params.jobId as string;
-  const job = sampleJobs.find((j) => j.id === jobId) ?? sampleJobs[0];
+  const job = sampleJobs.find((j) => j.id === jobId);
 
   const [activeTab, setActiveTab] = React.useState("resume");
   const [isReviewOpen, setIsReviewOpen] = React.useState(false);
-  const [isGenerating, setIsGenerating] = React.useState(true);
+  const [coverTone, setCoverTone] = React.useState<
+    "professional" | "enthusiastic" | "conversational"
+  >("professional");
+  const [resumeContent, setResumeContent] = React.useState("");
+  const [coverLetterContent, setCoverLetterContent] = React.useState("");
+  const [isResumeRegenerating, setIsResumeRegenerating] = React.useState(true);
+  const [isCoverRegenerating, setIsCoverRegenerating] = React.useState(true);
 
-  // Simulate initial AI generation
   React.useEffect(() => {
-    const timer = setTimeout(() => setIsGenerating(false), 2400);
-    return () => clearTimeout(timer);
-  }, []);
+    if (!job) return;
+    setIsResumeRegenerating(true);
+    setIsCoverRegenerating(true);
+    const timer = window.setTimeout(() => {
+      setResumeContent(generateResumeContent(job));
+      setCoverLetterContent(generateCoverLetterContent(job, coverTone));
+      setIsResumeRegenerating(false);
+      setIsCoverRegenerating(false);
+    }, 900);
+
+    return () => window.clearTimeout(timer);
+  }, [job, coverTone]);
+
+  const isGenerating = isResumeRegenerating || isCoverRegenerating;
+
+  const handleRegenerateResume = () => {
+    if (!job) return;
+    setIsResumeRegenerating(true);
+    window.setTimeout(() => {
+      setResumeContent(generateResumeContent(job));
+      setIsResumeRegenerating(false);
+    }, 900);
+  };
+
+  const handleRegenerateCoverLetter = () => {
+    if (!job) return;
+    setIsCoverRegenerating(true);
+    window.setTimeout(() => {
+      setCoverLetterContent(generateCoverLetterContent(job, coverTone));
+      setIsCoverRegenerating(false);
+    }, 900);
+  };
+
+  if (!job) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <div className="rounded-3xl border border-dashed border-border/60 bg-card p-12 text-center shadow-sm">
+          <p className="text-lg font-semibold">Job not found</p>
+          <p className="text-sm text-muted-foreground mt-2">This role is not available in the demo data.</p>
+          <Button variant="outline" className="mt-6" onClick={() => router.push("/jobs")}>Back to jobs</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
       <div className="flex flex-col h-[calc(100vh-4rem)]">
-        {/* Header bar */}
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -61,9 +136,7 @@ export default function ApplicationPage() {
               <h1 className="text-lg font-semibold tracking-tight leading-none">
                 Apply to {job.company}
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {job.title}
-              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">{job.title}</p>
             </div>
           </div>
 
@@ -86,9 +159,7 @@ export default function ApplicationPage() {
           </div>
         </motion.div>
 
-        {/* Split-screen content */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: Job description (hidden on mobile, shown as tab) */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -98,7 +169,6 @@ export default function ApplicationPage() {
             <JobDescriptionPanel job={job} />
           </motion.div>
 
-          {/* Right: AI-generated content tabs */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -147,7 +217,6 @@ export default function ApplicationPage() {
 
               <div className="flex-1 overflow-y-auto">
                 <AnimatePresence mode="wait">
-                  {/* Mobile-only job tab */}
                   <TabsContent
                     value="job"
                     className="lg:hidden m-0 h-full focus-visible:ring-0"
@@ -175,6 +244,10 @@ export default function ApplicationPage() {
                       <AiResumeEditor
                         job={job}
                         isGenerating={isGenerating}
+                        content={resumeContent}
+                        onRegenerate={handleRegenerateResume}
+                        isRegenerating={isResumeRegenerating}
+                        onContentChange={setResumeContent}
                       />
                     </motion.div>
                   </TabsContent>
@@ -192,6 +265,12 @@ export default function ApplicationPage() {
                       <AiCoverLetterEditor
                         job={job}
                         isGenerating={isGenerating}
+                        content={coverLetterContent}
+                        tone={coverTone}
+                        onToneChange={setCoverTone}
+                        onRegenerate={handleRegenerateCoverLetter}
+                        isRegenerating={isCoverRegenerating}
+                        onContentChange={setCoverLetterContent}
                       />
                     </motion.div>
                   </TabsContent>
@@ -220,6 +299,8 @@ export default function ApplicationPage() {
         job={job}
         open={isReviewOpen}
         onOpenChange={setIsReviewOpen}
+        resumeContent={resumeContent}
+        coverLetterContent={coverLetterContent}
       />
     </>
   );

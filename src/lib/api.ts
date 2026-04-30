@@ -38,16 +38,22 @@ async function request<T>(
     token = localStorage.getItem("pathfind_token");
   }
 
+  const isFormData = body instanceof FormData;
   const headers: HeadersInit = {
-    "Content-Type": "application/json",
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...init.headers,
+    ...(isFormData ? {} : { "Content-Type": "application/json" }),
   };
 
   const response = await fetch(url.toString(), {
     ...init,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body:
+      body === undefined
+        ? undefined
+        : isFormData
+        ? body
+        : JSON.stringify(body),
   });
 
   if (!response.ok) {
@@ -166,8 +172,7 @@ export const profileApi = {
       "/profile/resume/",
       {
         method: "POST",
-        headers: {},
-        body: form as unknown as undefined, // Type cast to bypass the RequestOptions type
+        body: form,
       }
     );
   },
@@ -350,8 +355,7 @@ export const aiApi = {
     form.append("resume", file);
     return request<ParsedResumeData>("/ai/resume/parse/", {
       method: "POST",
-      headers: {},
-      body: form as unknown as undefined,
+      body: form,
     });
   },
 

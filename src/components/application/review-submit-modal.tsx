@@ -32,12 +32,16 @@ interface ReviewSubmitModalProps {
   job: Job;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  resumeContent: string;
+  coverLetterContent: string;
 }
 
 export function ReviewSubmitModal({
   job,
   open,
   onOpenChange,
+  resumeContent,
+  coverLetterContent,
 }: ReviewSubmitModalProps) {
   const router = useRouter();
   const { addApplication } = useApplicationStore();
@@ -83,8 +87,8 @@ export function ReviewSubmitModal({
       lastActivity: "just now",
       lastActivityDescription: "Application Submitted",
       notes: "",
-      aiResume: "Tailored resume generated...",
-      aiCoverLetter: "Cover letter generated...",
+      aiResume: resumeContent,
+      aiCoverLetter: coverLetterContent,
     });
 
     setIsSubmitting(false);
@@ -194,11 +198,23 @@ export function ReviewSubmitModal({
                 </div>
 
                 {/* Disclaimer */}
-                <div className="flex gap-2 p-3 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 text-sm">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <p className="leading-relaxed">
-                    By submitting, you confirm that you have reviewed all AI-generated content for accuracy.
-                  </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex gap-2 p-3 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 text-sm">
+                    <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                    <p className="leading-relaxed">
+                      By submitting, you confirm that you have reviewed all AI-generated content for accuracy.
+                    </p>
+                  </div>
+                  <div className="grid gap-3">
+                    <div className="rounded-2xl border border-border/60 bg-card p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Resume preview</p>
+                      <p className="text-sm leading-relaxed line-clamp-3 whitespace-pre-line">{resumeContent}</p>
+                    </div>
+                    <div className="rounded-2xl border border-border/60 bg-card p-4">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Cover letter preview</p>
+                      <p className="text-sm leading-relaxed line-clamp-3 whitespace-pre-line">{coverLetterContent}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
 

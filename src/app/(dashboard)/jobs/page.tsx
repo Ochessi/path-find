@@ -374,7 +374,6 @@ export default function JobsPage() {
   const router = useRouter();
   const { jobs, savedJobs, toggleSaveJob } = useJobStore();
 
-  // Local filter state (independent from dashboard store)
   const [keyword, setKeyword] = React.useState("");
   const [location, setLocation] = React.useState("");
   const [industry, setIndustry] = React.useState("All Industries");
@@ -434,15 +433,25 @@ export default function JobsPage() {
       result = result.filter((j) => j.remote);
     }
 
-    // Sort
     result.sort((a, b) => {
       if (sortBy === "match") return b.matchScore - a.matchScore;
       if (sortBy === "recent") return a.postedDate.localeCompare(b.postedDate);
-      return 0; // salary sort would parse strings
+      if (sortBy === "salary") {
+        const parseSalary = (salary: string) => {
+          const numbers = salary.match(/\d+/g);
+          return numbers ? Number(numbers[0]) : 0;
+        };
+        return parseSalary(b.salary) - parseSalary(a.salary);
+      }
+      return 0;
     });
 
     return result;
   }, [jobs, keyword, location, industry, experienceLevel, jobType, remoteOnly, sortBy]);
+
+  const handleToggleSave = (jobId: string) => {
+    toggleSaveJob(jobId);
+  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -457,7 +466,6 @@ export default function JobsPage() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Mobile filter toggle – state lives here via a simple boolean */}
             <Button
               variant="outline"
               size="sm"
@@ -473,7 +481,6 @@ export default function JobsPage() {
               )}
             </Button>
 
-            {/* Sort */}
             <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
               <SelectTrigger className="h-9 w-[140px] rounded-xl text-sm">
                 <SelectValue />
@@ -487,7 +494,6 @@ export default function JobsPage() {
           </div>
         </div>
 
-        {/* Mobile search bar */}
         <div className="mt-4 lg:hidden relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -499,9 +505,7 @@ export default function JobsPage() {
         </div>
       </div>
 
-      {/* Body */}
       <div className="flex gap-8 flex-1 min-h-0 overflow-hidden">
-        {/* Sidebar */}
         <FilterSidebar
           keyword={keyword}
           setKeyword={setKeyword}
@@ -521,7 +525,6 @@ export default function JobsPage() {
           activeFilters={activeFilters}
         />
 
-        {/* Grid */}
         <div className="flex-1 overflow-y-auto pr-1 pb-8 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
           {filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground border border-dashed rounded-2xl">
@@ -540,7 +543,7 @@ export default function JobsPage() {
                     key={job.id}
                     job={job}
                     saved={savedJobs.includes(job.id)}
-                    onSave={() => toggleSaveJob(job.id)}
+                    onSave={() => handleToggleSave(job.id)}
                     onApply={() => router.push(`/application/${job.id}`)}
                   />
                 ))}

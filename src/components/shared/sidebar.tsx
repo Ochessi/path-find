@@ -8,6 +8,7 @@ import {
   Settings,
   HelpCircle,
   Search,
+  LogOut,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -68,17 +69,26 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t">
-        <div className="flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-muted">
-          <Avatar className="h-9 w-9">
+      <div className="p-4 border-t space-y-3">
+        <div className="flex items-center gap-3 rounded-lg px-3 py-3 transition-all hover:bg-muted">
+          <Avatar className="h-11 w-11">
             <AvatarImage src={user?.avatar} alt={user?.name} />
             <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col truncate">
-            <span className="text-sm font-medium leading-none">{user?.name}</span>
-            <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
+            <span className="text-sm font-medium leading-none">{user?.name ?? "Guest"}</span>
+            <span className="text-xs text-muted-foreground truncate">{user?.email ?? "Not signed in"}</span>
           </div>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-2"
+          onClick={() => useAuthStore.getState().logout()}
+        >
+          <LogOut className="h-4 w-4" />
+          Sign out
+        </Button>
       </div>
     </aside>
   );
