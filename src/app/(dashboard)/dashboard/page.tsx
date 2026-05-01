@@ -410,24 +410,20 @@ function DashboardPreviewCard() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-950 border border-white/10 p-6 shadow-[0_30px_100px_-50px_rgba(124,58,237,0.45)] text-white"
+      className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-950 p-6 shadow-[0_30px_100px_-50px_rgba(124,58,237,0.45)] text-white"
     >
-      <motion.div
-        className="pointer-events-none absolute inset-0 rounded-3xl bg-white/5"
-        animate={{ scale: [1, 1.02, 1], opacity: [0.35, 0.55, 0.35] }}
-        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <div className="relative z-10">
+      <div className="pointer-events-none absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_26%),radial-gradient(circle_at_bottom_right,rgba(168,85,247,0.16),transparent_28%)]" />
+      <div className="relative z-10 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.32em] text-sky-300/80">Interactive preview</p>
-            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Live pipeline spotlight</h2>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight text-white">Live pipeline spotlight</h2>
             <p className="mt-2 text-sm text-slate-200/80 max-w-xl">
               Preview how your application volume and top matches evolve with AI-powered insights.
             </p>
           </div>
 
-          <div className="inline-flex rounded-full bg-slate-900/70 p-1">
+          <div className="inline-flex rounded-full bg-slate-900/70 p-1 shadow-inner shadow-slate-950/30">
             {(["week", "month"] as const).map((option) => (
               <button
                 key={option}
@@ -444,61 +440,91 @@ function DashboardPreviewCard() {
           </div>
         </div>
 
-        <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-4">
-          <div className="grid gap-4 md:grid-cols-[1.4fr_0.9fr] items-end pb-4">
-            <div className="flex items-center gap-3">
+        <div className="rounded-[28px] border border-white/10 bg-slate-950/90 p-5 shadow-[0_24px_80px_-48px_rgba(15,23,42,0.65)]">
+          <div className="grid gap-4 lg:grid-cols-[1.4fr_0.95fr] items-start pb-4">
+            <div className="flex items-start gap-3">
               <motion.div
-                className="relative flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/90 ring-1 ring-white/10"
+                className="relative flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-900/95 ring-1 ring-white/10"
                 animate={{ scale: [1, 1.04, 1] }}
                 transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
               >
-                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-sky-400/20" />
-                <span className="relative text-sm font-semibold text-white">{range === "week" ? "W" : "M"}</span>
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-sky-400/20" />
+                <span className="relative text-sm font-semibold text-white">
+                  {range === "week" ? "W" : "M"}
+                </span>
               </motion.div>
               <div>
-                <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Application trend</p>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-400">Application trend</p>
                 <p className="mt-1 text-lg font-semibold text-white">{totalPoints} applications tracked</p>
+                <p className="mt-2 text-sm text-slate-400 max-w-md">
+                  A quick look at your recent activity and momentum across the selected timeframe.
+                </p>
               </div>
             </div>
-            <div className="rounded-3xl bg-slate-950/90 p-4 border border-white/10">
-              <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Pipeline health</p>
-              <div className="mt-3 flex items-center justify-between gap-3">
-                <div className="min-w-[3.25rem] min-h-[3.25rem] rounded-full bg-slate-900/90 ring-1 ring-white/10 flex items-center justify-center">
-                  <span className="text-sm font-semibold text-sky-300">{pipelineHealth}%</span>
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold text-white">AI momentum</p>
-                  <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 via-violet-500 to-sky-400"
-                      animate={{ width: `${aiMomentum}%` }}
-                      transition={{ duration: 0.8, ease: "easeOut" }}
-                    />
+            <div className="grid gap-3">
+              <div className="rounded-3xl bg-slate-900/95 p-4 border border-white/10 shadow-sm">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Pipeline health</p>
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="min-w-[3.25rem] min-h-[3.25rem] rounded-full bg-slate-900/90 ring-1 ring-white/10 flex items-center justify-center">
+                    <span className="text-sm font-semibold text-sky-300">{pipelineHealth}%</span>
                   </div>
-                  <p className="mt-2 text-[11px] text-slate-400">{aiMomentum}% of applications AI-powered</p>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-white">Health score</p>
+                    <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 via-violet-500 to-sky-400"
+                        animate={{ width: `${pipelineHealth}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-400">Your funnel is moving steadily toward more offers.</p>
+                  </div>
+                </div>
+              </div>
+              <div className="rounded-3xl bg-slate-900/95 p-4 border border-white/10 shadow-sm">
+                <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">AI momentum</p>
+                <div className="mt-4 flex items-center gap-3">
+                  <span className="text-2xl">⚡</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-white">{aiMomentum}% AI-powered</p>
+                    <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 via-violet-500 to-sky-400"
+                        animate={{ width: `${aiMomentum}%` }}
+                        transition={{ duration: 0.8, ease: "easeOut" }}
+                      />
+                    </div>
+                    <p className="mt-2 text-[11px] text-slate-400">AI is driving better applications and faster matches.</p>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-end gap-2 h-36">
-            {previewData.map((value, index) => (
-              <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                <motion.div
-                  className="w-full rounded-full bg-slate-800 overflow-hidden"
-                  initial={{ height: 0 }}
-                  animate={{ height: `${10 + value * 5}%` }}
-                  transition={{ duration: 0.8, delay: index * 0.05, ease: "easeOut" }}
-                >
-                  <div className="h-full rounded-full bg-gradient-to-t from-fuchsia-500 via-violet-500 to-sky-400" />
-                </motion.div>
-                <span className="text-[10px] text-slate-300">
-                  {range === "week"
-                    ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index]
-                    : ["W1", "W2", "W3", "W4", "W5", "W6", "W7"][index]}
-                </span>
-              </div>
-            ))}
+          <div className="mt-6 rounded-[28px] bg-slate-950/90 p-4 border border-white/10">
+            <div className="grid grid-cols-7 gap-3 h-48 items-end">
+              {previewData.map((value, index) => (
+                <div key={index} className="flex flex-col items-center gap-2">
+                  <motion.div
+                    className="w-full rounded-full bg-slate-800 overflow-hidden"
+                    initial={{ height: 0 }}
+                    animate={{ height: `${10 + value * 5}%` }}
+                    transition={{ duration: 0.8, delay: index * 0.05, ease: "easeOut" }}
+                  >
+                    <div className="h-full rounded-full bg-gradient-to-t from-fuchsia-500 via-violet-500 to-sky-400" />
+                  </motion.div>
+                  <span className="text-[10px] text-slate-300 tracking-[0.06em] uppercase">
+                    {range === "week"
+                      ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index]
+                      : ["W1", "W2", "W3", "W4", "W5", "W6", "W7"][index]}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 flex items-center justify-between text-[11px] text-slate-400 uppercase tracking-[0.18em]">
+              <span>{range === "week" ? "Daily trend" : "Weekly trend"}</span>
+              <span>{range === "week" ? "Mon → Sun" : "Last 7 weeks"}</span>
+            </div>
           </div>
         </div>
 
@@ -508,11 +534,11 @@ function DashboardPreviewCard() {
               key={app.id}
               whileHover={{ y: -4 }}
               transition={{ type: "spring", stiffness: 220, damping: 18 }}
-              className="rounded-3xl bg-white/7 border border-white/10 p-4 hover:bg-white/10"
+              className="rounded-3xl bg-white/7 border border-white/10 p-4 shadow-sm hover:bg-white/10"
             >
               <div className="flex items-center justify-between gap-2">
                 <div>
-                  <p className="text-xs uppercase tracking-[0.26em] text-slate-300">Top match</p>
+                  <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Top match</p>
                   <p className="mt-2 text-sm font-semibold text-white">{app.job.title}</p>
                 </div>
                 <div className="rounded-full bg-slate-800 px-2 py-1 text-[11px] font-semibold text-sky-300">
