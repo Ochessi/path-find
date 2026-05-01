@@ -31,7 +31,10 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
         <Providers attribute="class" defaultTheme="system" enableSystem>
-          {children}
+          <div className="relative min-h-screen overflow-hidden">
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(circle_at_top,_rgba(88,165,255,0.12),transparent_30%),radial-gradient(circle_at_80%_20%,rgba(168,85,247,0.12),transparent_20%)]" />
+            <div className="relative z-10">{children}</div>
+          </div>
         </Providers>
       </body>
     </html>

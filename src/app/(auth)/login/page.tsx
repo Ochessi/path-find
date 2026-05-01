@@ -3,6 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -34,15 +35,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2 text-center lg:text-left">
-        <h1 className="text-3xl font-bold tracking-tight">Welcome back</h1>
-        <p className="text-muted-foreground">
-          Enter your details to sign in to your account
-        </p>
-      </div>
+    <div className="relative isolate overflow-hidden rounded-[40px] bg-slate-950/70 p-6 shadow-[0_48px_140px_-90px_rgba(14,165,233,0.5)] before:absolute before:-left-20 before:top-8 before:h-44 before:w-44 before:rounded-full before:bg-sky-500/20 before:blur-3xl after:absolute after:-right-16 after:bottom-10 after:h-56 after:w-56 after:rounded-full after:bg-violet-500/15 after:blur-3xl">
+      <motion.div
+        initial={{ opacity: 0, y: 28, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.55, ease: [0.16, 1, 0.3, 1] }}
+        className="mx-auto max-w-md rounded-[32px] border border-white/10 bg-slate-950/90 p-8 shadow-[0_32px_120px_-80px_rgba(15,23,42,0.7)] backdrop-blur-2xl"
+      >
+        <div className="space-y-2 text-center">
+          <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">Welcome back</p>
+          <h1 className="text-4xl font-semibold tracking-tight text-white">Sign in to Pathfind</h1>
+          <p className="text-slate-400">
+            Enter your details to access your personalized job pipeline.
+          </p>
+        </div>
 
-      <div className="grid gap-6">
+      <div className="mt-8 grid gap-6">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
@@ -94,10 +102,10 @@ export default function LoginPage() {
 
         <div className="relative">
           <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
+            <span className="w-full border-t border-white/10" />
           </div>
           <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">
+            <span className="bg-slate-950 px-2 text-slate-400">
               Or continue with
             </span>
           </div>
@@ -135,15 +143,16 @@ export default function LoginPage() {
         </div>
       </div>
 
-      <p className="text-center text-sm text-muted-foreground pb-8">
+      <p className="text-center text-sm text-slate-400 pb-8">
         Don&apos;t have an account?{" "}
         <Link
           href="/register"
-          className="font-semibold text-primary hover:underline"
+          className="font-semibold text-sky-300 hover:text-sky-200 hover:underline"
         >
           Sign up
         </Link>
       </p>
+      </motion.div>
     </div>
   );
 }

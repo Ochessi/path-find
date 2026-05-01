@@ -30,17 +30,17 @@ export function Sidebar() {
   const { user } = useAuthStore();
 
   return (
-    <aside className="hidden w-64 flex-col border-r bg-background/50 backdrop-blur-xl md:flex">
-      <div className="flex h-14 items-center px-4 border-b">
-        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-xl tracking-tight text-primary">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
+    <aside className="hidden w-72 flex-col border-r border-white/10 bg-slate-950/80 backdrop-blur-2xl shadow-2xl shadow-slate-950/20 md:flex">
+      <div className="flex h-16 items-center px-5 border-b border-white/10">
+        <Link href="/dashboard" className="flex items-center gap-3 font-bold text-xl tracking-tight text-white">
+          <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-sky-500 via-violet-500 to-fuchsia-500 shadow-lg shadow-sky-500/20 flex items-center justify-center text-base font-black text-white">
             P
           </div>
-          Pathfind
+          <span className="text-white">Pathfind</span>
         </Link>
       </div>
 
-      <nav className="flex-1 space-y-1 p-4">
+      <nav className="flex-1 space-y-2 p-4">
         {navItems.map((item) => {
           const isActive =
             item.href === "/dashboard"
@@ -50,16 +50,16 @@ export function Sidebar() {
             <Link key={item.name} href={item.href}>
               <span
                 className={cn(
-                  "group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                  "group flex items-center gap-3 rounded-3xl px-4 py-3 text-sm font-medium transition-all duration-200",
                   isActive
-                    ? "bg-primary/10 text-primary"
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                    ? "bg-gradient-to-r from-sky-500/10 to-violet-500/10 text-white ring-1 ring-sky-500/20"
+                    : "text-slate-300 hover:bg-white/10 hover:text-white"
                 )}
               >
                 <item.icon
                   className={cn(
                     "h-5 w-5",
-                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+                    isActive ? "text-sky-400" : "text-slate-400 group-hover:text-white"
                   )}
                 />
                 {item.name}
@@ -69,21 +69,21 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-4 border-t space-y-3">
-        <div className="flex items-center gap-3 rounded-lg px-3 py-3 transition-all hover:bg-muted">
-          <Avatar className="h-11 w-11">
+      <div className="p-4 border-t border-white/10 space-y-3 bg-slate-950/60">
+        <div className="flex items-center gap-3 rounded-3xl border border-white/10 bg-white/5 px-3 py-3 shadow-inner shadow-slate-950/20 transition-all hover:bg-white/10">
+          <Avatar className="h-11 w-11 ring-1 ring-white/10 shadow-sm shadow-slate-950/20">
             <AvatarImage src={user?.avatar} alt={user?.name} />
             <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col truncate">
-            <span className="text-sm font-medium leading-none">{user?.name ?? "Guest"}</span>
-            <span className="text-xs text-muted-foreground truncate">{user?.email ?? "Not signed in"}</span>
+            <span className="text-sm font-medium leading-none text-white">{user?.name ?? "Guest"}</span>
+            <span className="text-xs text-slate-400 truncate">{user?.email ?? "Not signed in"}</span>
           </div>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="w-full gap-2"
+          className="w-full gap-2 border-white/10 text-white hover:bg-white/10"
           onClick={() => useAuthStore.getState().logout()}
         >
           <LogOut className="h-4 w-4" />

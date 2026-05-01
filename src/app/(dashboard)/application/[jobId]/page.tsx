@@ -121,41 +121,58 @@ export default function ApplicationPage() {
         <motion.div
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-between border-b bg-card/80 backdrop-blur-md px-4 sm:px-6 py-3 shrink-0"
+          className="flex flex-col gap-3 border-b border-white/10 bg-slate-950/80 backdrop-blur-xl px-4 sm:px-6 py-4 shrink-0"
         >
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="rounded-xl"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-lg font-semibold tracking-tight leading-none">
-                Apply to {job.company}
-              </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">{job.title}</p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => router.back()}
+                className="rounded-xl border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight text-white">
+                  Apply to {job.company}
+                </h1>
+                <p className="text-sm text-slate-400 mt-1">{job.title}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Badge
+                variant="secondary"
+                className="bg-emerald-500/10 text-emerald-200 border-0"
+              >
+                <Sparkles className="h-3 w-3 mr-1" />
+                {job.matchScore}% Match
+              </Badge>
+              <Button
+                onClick={() => setIsReviewOpen(true)}
+                className="bg-gradient-to-r from-emerald-500 to-sky-500 text-slate-950 rounded-2xl px-4 py-2 font-semibold shadow-lg shadow-emerald-500/20 hover:opacity-95"
+              >
+                <SendHorizonal className="h-4 w-4" />
+                <span className="hidden sm:inline">Review & Submit</span>
+                <span className="sm:hidden">Submit</span>
+              </Button>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="secondary"
-              className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0"
-            >
-              <Sparkles className="h-3 w-3 mr-1" />
-              {job.matchScore}% Match
-            </Badge>
-            <Button
-              onClick={() => setIsReviewOpen(true)}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl gap-2"
-            >
-              <SendHorizonal className="h-4 w-4" />
-              <span className="hidden sm:inline">Review & Submit</span>
-              <span className="sm:hidden">Submit</span>
-            </Button>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="rounded-3xl bg-slate-900/80 border border-white/10 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Role</p>
+              <p className="mt-2 font-semibold text-white">{job.type}</p>
+            </div>
+            <div className="rounded-3xl bg-slate-900/80 border border-white/10 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Level</p>
+              <p className="mt-2 font-semibold text-white">{job.experienceLevel}</p>
+            </div>
+            <div className="rounded-3xl bg-slate-900/80 border border-white/10 p-4">
+              <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Location</p>
+              <p className="mt-2 font-semibold text-white">{job.location}</p>
+            </div>
           </div>
         </motion.div>
 
@@ -180,25 +197,25 @@ export default function ApplicationPage() {
               onValueChange={setActiveTab}
               className="flex flex-col flex-1 overflow-hidden"
             >
-              <div className="border-b px-4 sm:px-6 bg-card/40">
-                <TabsList className="h-12 bg-transparent gap-1 w-full justify-start">
+              <div className="border-b border-white/10 bg-slate-950/70 px-4 sm:px-6 backdrop-blur-md">
+                <TabsList className="h-14 bg-slate-950/80 rounded-[28px] gap-2 w-full p-1 shadow-inner shadow-slate-950/30">
                   <TabsTrigger
                     value="job"
-                    className="lg:hidden data-[state=active]:bg-muted rounded-lg gap-2 text-sm"
+                    className="lg:hidden data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-800 data-[state=active]:to-slate-900 rounded-2xl gap-2 text-sm text-slate-300 data-[state=active]:text-white"
                   >
                     <FileText className="h-4 w-4" />
                     <span className="hidden sm:inline">Job</span>
                   </TabsTrigger>
                   <TabsTrigger
                     value="resume"
-                    className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-800 data-[state=active]:to-slate-900 rounded-2xl gap-2 text-sm text-slate-300 data-[state=active]:text-white"
                   >
                     <PenLine className="h-4 w-4" />
                     Resume
                   </TabsTrigger>
                   <TabsTrigger
                     value="cover-letter"
-                    className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-800 data-[state=active]:to-slate-900 rounded-2xl gap-2 text-sm text-slate-300 data-[state=active]:text-white"
                   >
                     <Mail className="h-4 w-4" />
                     <span className="hidden sm:inline">Cover Letter</span>
@@ -206,7 +223,7 @@ export default function ApplicationPage() {
                   </TabsTrigger>
                   <TabsTrigger
                     value="autofill"
-                    className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm"
+                    className="data-[state=active]:bg-gradient-to-r data-[state=active]:from-slate-800 data-[state=active]:to-slate-900 rounded-2xl gap-2 text-sm text-slate-300 data-[state=active]:text-white"
                   >
                     <ListChecks className="h-4 w-4" />
                     <span className="hidden sm:inline">Form Fields</span>
