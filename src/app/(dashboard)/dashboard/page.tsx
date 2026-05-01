@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import { useApplicationStore } from "@/store/application.store";
 import { useAuthStore } from "@/store/auth.store";
 import { motion } from "framer-motion";
@@ -14,6 +15,7 @@ import {
   Activity,
 } from "lucide-react";
 import Link from "next/link";
+import { StatsCards } from "@/components/dashboard/stats-cards";
 
 // ─── helpers ───────────────────────────────────────────────────────────────
 
@@ -385,6 +387,149 @@ function AiTimeSavedCard() {
 
 // ─── 4. Quick-stats strip ───────────────────────────────────────────────────
 
+function DashboardPreviewCard() {
+  const { applications } = useApplicationStore();
+  const [range, setRange] = React.useState<"week" | "month">("week");
+
+  const weeklyData = [4, 7, 6, 10, 9, 7, 11];
+  const monthlyData = [18, 22, 19, 24, 28, 26, 31];
+  const previewData = range === "week" ? weeklyData : monthlyData;
+  const totalPoints = previewData.reduce((sum, value) => sum + value, 0);
+  const aiMomentum = applications.length
+    ? Math.round((applications.filter((a) => a.aiResume || a.aiCoverLetter).length / applications.length) * 100)
+    : 0;
+  const pipelineHealth = Math.min(100, Math.round((totalPoints / 40) * 100));
+
+  const topJobs = [...applications]
+    .filter((app) => app.status !== "rejected")
+    .sort((a, b) => (b.job.matchScore ?? 0) - (a.job.matchScore ?? 0))
+    .slice(0, 3);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-950 via-violet-950 to-fuchsia-950 border border-white/10 p-6 shadow-[0_30px_100px_-50px_rgba(124,58,237,0.45)] text-white"
+    >
+      <motion.div
+        className="pointer-events-none absolute inset-0 rounded-3xl bg-white/5"
+        animate={{ scale: [1, 1.02, 1], opacity: [0.35, 0.55, 0.35] }}
+        transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <div className="relative z-10">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.32em] text-sky-300/80">Interactive preview</p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight">Live pipeline spotlight</h2>
+            <p className="mt-2 text-sm text-slate-200/80 max-w-xl">
+              Preview how your application volume and top matches evolve with AI-powered insights.
+            </p>
+          </div>
+
+          <div className="inline-flex rounded-full bg-slate-900/70 p-1">
+            {(["week", "month"] as const).map((option) => (
+              <button
+                key={option}
+                onClick={() => setRange(option)}
+                className={`rounded-full px-3 py-1.5 text-xs font-semibold transition ${
+                  range === option
+                    ? "bg-white text-slate-950"
+                    : "text-slate-300 hover:text-white"
+                }`}
+              >
+                {option === "week" ? "This week" : "This month"}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-4">
+          <div className="grid gap-4 md:grid-cols-[1.4fr_0.9fr] items-end pb-4">
+            <div className="flex items-center gap-3">
+              <motion.div
+                className="relative flex h-12 w-12 items-center justify-center rounded-full bg-slate-900/90 ring-1 ring-white/10"
+                animate={{ scale: [1, 1.04, 1] }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <div className="absolute inset-0 rounded-full bg-gradient-to-br from-violet-500/20 via-fuchsia-500/20 to-sky-400/20" />
+                <span className="relative text-sm font-semibold text-white">{range === "week" ? "W" : "M"}</span>
+              </motion.div>
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-slate-300">Application trend</p>
+                <p className="mt-1 text-lg font-semibold text-white">{totalPoints} applications tracked</p>
+              </div>
+            </div>
+            <div className="rounded-3xl bg-slate-950/90 p-4 border border-white/10">
+              <p className="text-[10px] uppercase tracking-[0.24em] text-slate-400">Pipeline health</p>
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <div className="min-w-[3.25rem] min-h-[3.25rem] rounded-full bg-slate-900/90 ring-1 ring-white/10 flex items-center justify-center">
+                  <span className="text-sm font-semibold text-sky-300">{pipelineHealth}%</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-white">AI momentum</p>
+                  <div className="mt-2 h-2 rounded-full bg-slate-800 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 via-violet-500 to-sky-400"
+                      animate={{ width: `${aiMomentum}%` }}
+                      transition={{ duration: 0.8, ease: "easeOut" }}
+                    />
+                  </div>
+                  <p className="mt-2 text-[11px] text-slate-400">{aiMomentum}% of applications AI-powered</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex items-end gap-2 h-36">
+            {previewData.map((value, index) => (
+              <div key={index} className="flex-1 flex flex-col items-center gap-2">
+                <motion.div
+                  className="w-full rounded-full bg-slate-800 overflow-hidden"
+                  initial={{ height: 0 }}
+                  animate={{ height: `${10 + value * 5}%` }}
+                  transition={{ duration: 0.8, delay: index * 0.05, ease: "easeOut" }}
+                >
+                  <div className="h-full rounded-full bg-gradient-to-t from-fuchsia-500 via-violet-500 to-sky-400" />
+                </motion.div>
+                <span className="text-[10px] text-slate-300">
+                  {range === "week"
+                    ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index]
+                    : ["W1", "W2", "W3", "W4", "W5", "W6", "W7"][index]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {topJobs.map((app) => (
+            <motion.div
+              key={app.id}
+              whileHover={{ y: -4 }}
+              transition={{ type: "spring", stiffness: 220, damping: 18 }}
+              className="rounded-3xl bg-white/7 border border-white/10 p-4 hover:bg-white/10"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.26em] text-slate-300">Top match</p>
+                  <p className="mt-2 text-sm font-semibold text-white">{app.job.title}</p>
+                </div>
+                <div className="rounded-full bg-slate-800 px-2 py-1 text-[11px] font-semibold text-sky-300">
+                  {app.job.matchScore}%
+                </div>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-slate-200/90">
+                {app.job.company} · {app.job.location}
+              </p>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 function QuickStatStrip() {
   const { applications } = useApplicationStore();
   const total     = applications.length;
@@ -394,24 +539,24 @@ function QuickStatStrip() {
   const responseRate = total > 0 ? Math.round((responses / total) * 100) : 0;
 
   const stats = [
-    { label: "Total Applications", value: total,         color: "text-foreground" },
-    { label: "Active Pipeline",    value: active,        color: "text-blue-500" },
-    { label: "AI-Powered",         value: `${aiApps}`,   color: "text-violet-500" },
-    { label: "Response Rate",      value: `${responseRate}%`, color: "text-emerald-500" },
+    { label: "Total Applications", value: total,         color: "text-slate-100", bg: "from-slate-900 via-slate-950 to-slate-900" },
+    { label: "Active Pipeline",    value: active,        color: "text-sky-200",   bg: "from-sky-900 via-slate-950 to-slate-900" },
+    { label: "AI-Powered",         value: `${aiApps}`,   color: "text-violet-200",bg: "from-violet-900 via-slate-950 to-slate-900" },
+    { label: "Response Rate",      value: `${responseRate}%`, color: "text-emerald-200", bg: "from-emerald-900 via-slate-950 to-slate-900" },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
       {stats.map((s, i) => (
         <motion.div
           key={s.label}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: i * 0.06 }}
-          className="bg-card border border-border/60 rounded-xl px-4 py-3 shadow-sm"
+          className={`rounded-3xl p-4 shadow-[0_18px_60px_-42px_rgba(15,23,42,0.6)] bg-gradient-to-br ${s.bg}`}
         >
-          <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{s.label}</p>
+          <p className={`text-3xl font-semibold ${s.color}`}>{s.value}</p>
+          <p className="text-xs text-slate-300 mt-2">{s.label}</p>
         </motion.div>
       ))}
     </div>
@@ -450,8 +595,13 @@ export default function OverviewPage() {
         </Link>
       </motion.div>
 
-      {/* Quick stats */}
-      <QuickStatStrip />
+      {/* Dashboard overview */}
+      <StatsCards />
+
+      <div className="grid gap-6 xl:grid-cols-[1.8fr_1fr]">
+        <DashboardPreviewCard />
+        <QuickStatStrip />
+      </div>
 
       {/* 3-column analytics grid */}
       <div className="grid gap-6 lg:grid-cols-3">
