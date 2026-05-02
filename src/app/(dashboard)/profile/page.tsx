@@ -377,7 +377,7 @@ export default function ProfilePage() {
                   >
                     <Badge
                       variant={isEditing ? "default" : "secondary"}
-                      className="rounded-lg px-3 py-1.5 badge-gradient-hover"
+                      className="rounded-lg px-3 py-1.5 transition-all duration-300 hover:shadow-md hover:shadow-sky-500/20"
                     >
                       {skill}
                     </Badge>

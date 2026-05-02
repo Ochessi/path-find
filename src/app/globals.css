@@ -292,19 +292,11 @@
   }
 
   /* Badges */
-  .badge-gradient {
+  .badge-pulse {
     @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold;
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(168, 85, 247, 0.2));
     border: 1px solid rgba(59, 130, 246, 0.3);
-    color: inherit;
-  }
-
-  .badge-gradient-hover {
-    @apply badge-gradient transition-all duration-300 hover:shadow-md hover:shadow-sky-500/20;
-  }
-
-  .badge-pulse {
-    @apply badge-gradient animate-glow-pulse;
+    animation: glow-pulse 2.5s ease-in-out infinite;
   }
 
   /* Section Headers */
