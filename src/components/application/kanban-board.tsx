@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { motion } from "framer-motion";
 import { DragDropContext, Droppable, DropResult } from "@hello-pangea/dnd";
 
 import { useApplicationStore } from "@/store/application.store";
@@ -24,7 +25,6 @@ export function KanbanBoard({ searchTerm }: KanbanBoardProps) {
 
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
@@ -54,51 +54,84 @@ export function KanbanBoard({ searchTerm }: KanbanBoardProps) {
     updateStatus(draggableId, newStatus);
   };
 
-  if (!mounted) return null; // Prevent hydration mismatch with drag and drop
+  if (!mounted) return null;
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex h-full gap-6 overflow-x-auto pb-4 snap-x">
-        {COLUMNS.map((column) => {
+        {COLUMNS.map((column, columnIndex) => {
           const columnApps = filteredApplications.filter(
             (app) => app.status === column.id
           );
 
           return (
-            <div
+            <motion.div
               key={column.id}
               className="flex flex-col min-w-[320px] max-w-[320px] snap-center"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: columnIndex * 0.1, duration: 0.4 }}
             >
-              <div className="flex items-center justify-between mb-4 px-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-semibold">{column.title}</h3>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${column.color}`}>
+              {/* Column Header */}
+              <motion.div
+                className="flex items-center justify-between mb-4 px-1"
+                whileHover={{ y: -2 }}
+              >
+                <div className="flex items-center gap-3">
+                  <h3 className="font-semibold text-sm tracking-tight">{column.title}</h3>
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className={`text-xs font-bold px-2.5 py-1 rounded-full transition-all duration-300 ${column.color} border border-current/20`}
+                  >
                     {columnApps.length}
-                  </span>
+                  </motion.span>
                 </div>
-              </div>
+              </motion.div>
 
+              {/* Droppable Area */}
               <Droppable droppableId={column.id}>
                 {(provided, snapshot) => (
-                  <div
+                  <motion.div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className={`flex-1 rounded-2xl p-3 min-h-[150px] transition-colors border-2 ${
+                    animate={{
+                      backgroundColor: snapshot.isDraggingOver
+                        ? "var(--muted)"
+                        : "transparent",
+                    }}
+                    transition={{ duration: 0.2 }}
+                    className={`flex-1 rounded-2xl p-4 min-h-[150px] border-2 transition-all duration-300 ${
                       snapshot.isDraggingOver
-                        ? "bg-muted/50 border-primary/20 border-dashed"
-                        : "bg-muted/20 border-transparent"
+                        ? "border-primary/40 shadow-inner shadow-primary/5 scale-[1.01]"
+                        : "border-transparent hover:border-primary/20 hover:bg-muted/20"
                     }`}
                   >
                     <div className="flex flex-col gap-3">
                       {columnApps.map((app, index) => (
-                        <KanbanCard key={app.id} application={app} index={index} />
+                        <KanbanCard
+                          key={app.id}
+                          application={app}
+                          index={index}
+                        />
                       ))}
                       {provided.placeholder}
+
+                      {/* Empty State */}
+                      {columnApps.length === 0 && !snapshot.isDraggingOver && (
+                        <motion.div
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 0.5 }}
+                          className="flex items-center justify-center h-32 text-center text-muted-foreground text-sm"
+                        >
+                          <p>Drop items here</p>
+                        </motion.div>
+                      )}
                     </div>
-                  </div>
+                  </motion.div>
                 )}
               </Droppable>
-            </div>
+            </motion.div>
           );
         })}
       </div>

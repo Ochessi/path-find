@@ -104,7 +104,7 @@ function ApplicationVelocityCard() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm"
+      className="card-elevated glow-effect-primary"
     >
       <SectionHeader
         icon={BarChart2}
@@ -205,7 +205,7 @@ function ConversionFunnelCard() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.1 }}
-      className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm"
+      className="card-elevated glow-effect-violet"
     >
       <SectionHeader
         icon={Target}
@@ -306,7 +306,7 @@ function AiTimeSavedCard() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, delay: 0.2 }}
-      className="bg-card border border-border/60 rounded-2xl p-6 shadow-sm lg:col-span-1"
+      className="card-elevated glow-effect-primary lg:col-span-1"
     >
       <SectionHeader
         icon={Sparkles}

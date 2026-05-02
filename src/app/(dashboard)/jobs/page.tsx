@@ -91,14 +91,19 @@ function JobGridCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
-      className="group relative flex flex-col bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/40 hover:shadow-md transition-all duration-200"
+      whileHover={{ y: -4 }}
+      transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      className="group relative flex flex-col bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10 transition-all duration-300"
     >
       {/* Top row */}
       <div className="flex items-start justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
-          <div className="h-11 w-11 shrink-0 rounded-xl bg-muted border border-border/60 flex items-center justify-center font-bold text-lg text-muted-foreground">
+          <motion.div
+            whileHover={{ scale: 1.1 }}
+            className="h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br from-sky-400 to-violet-500 border border-primary/20 flex items-center justify-center font-bold text-white shadow-sm"
+          >
             {job.companyLogo ?? job.company[0]}
-          </div>
+          </motion.div>
           <div>
             <h3 className="font-semibold text-sm leading-tight line-clamp-1">
               {job.title}
