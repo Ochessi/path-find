@@ -1,4 +1,5 @@
 "use client";
+import * as React from "react";
 
 import { useApplicationStore } from "@/store/application.store";
 import { useAuthStore } from "@/store/auth.store";
@@ -422,7 +423,12 @@ function QuickStatStrip() {
 
 export default function OverviewPage() {
   const { user } = useAuthStore();
+  const { fetchApplications } = useApplicationStore();
   const firstName = user?.name?.split(" ")[0] ?? "there";
+
+  React.useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
 
   return (
     <div className="space-y-6 pb-10">

@@ -1,66 +1,121 @@
+"use client";
+
 import { create } from "zustand";
-import { User } from "@/types";
+import { persist } from "zustand/middleware";
+import { authApi, type UserProfile } from "@/lib/api/auth";
+import { apiClient } from "@/lib/api/client";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AuthState {
-  user: User | null;
-  token: string | null;
+  user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  error: string | null;
+
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
-  setUser: (user: User) => void;
+  fetchMe: () => Promise<void>;
+  setUser: (user: UserProfile) => void;
+  clearError: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
-  user: {
-    id: "1",
-    name: "Alex Johnson",
-    email: "alex@pathfind.ai",
-    avatar: "",
-    onboardingComplete: true,
-  },
-  token: "demo-token",
-  isAuthenticated: true,
-  isLoading: false,
+// ─── Token helpers ────────────────────────────────────────────────────────────
 
-  login: async (email: string, _password: string) => {
-    set({ isLoading: true });
-    await new Promise((r) => setTimeout(r, 1000));
-    set({
-      user: {
-        id: "1",
-        name: "Alex Johnson",
-        email,
-        avatar: "",
-        onboardingComplete: true,
-      },
-      token: "demo-token",
-      isAuthenticated: true,
+function saveTokens(access: string, refresh: string) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem("pathfind_access_token", access);
+  localStorage.setItem("pathfind_refresh_token", refresh);
+  // Keep axios default header in sync so non-intercepted calls also work
+  apiClient.defaults.headers.common["Authorization"] = `Bearer ${access}`;
+}
+
+function clearTokens() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem("pathfind_access_token");
+  localStorage.removeItem("pathfind_refresh_token");
+  delete apiClient.defaults.headers.common["Authorization"];
+}
+
+// ─── Store ────────────────────────────────────────────────────────────────────
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      user: null,
+      isAuthenticated: false,
       isLoading: false,
-    });
-  },
+      error: null,
 
-  register: async (name: string, email: string, _password: string) => {
-    set({ isLoading: true });
-    await new Promise((r) => setTimeout(r, 1000));
-    set({
-      user: {
-        id: "1",
-        name,
-        email,
-        avatar: "",
-        onboardingComplete: false,
+      login: async (email: string, password: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { access, refresh, user } = await authApi.login({ email, password });
+          saveTokens(access, refresh);
+          set({ user, isAuthenticated: true, isLoading: false });
+        } catch (err: unknown) {
+          const message =
+            err instanceof Error ? err.message : "Login failed. Please check your credentials.";
+          set({ isLoading: false, error: message });
+          throw err;
+        }
       },
-      token: "demo-token",
-      isAuthenticated: true,
-      isLoading: false,
-    });
-  },
 
-  logout: () => {
-    set({ user: null, token: null, isAuthenticated: false });
-  },
+      register: async (name: string, email: string, password: string) => {
+        set({ isLoading: true, error: null });
+        try {
+          const { access, refresh, user } = await authApi.register({ name, email, password });
+          saveTokens(access, refresh);
+          set({ user, isAuthenticated: true, isLoading: false });
+        } catch (err: unknown) {
+          const message =
+            err instanceof Error ? err.message : "Registration failed. Please try again.";
+          set({ isLoading: false, error: message });
+          throw err;
+        }
+      },
 
-  setUser: (user: User) => set({ user }),
-}));
+      logout: () => {
+        clearTokens();
+        set({ user: null, isAuthenticated: false, error: null });
+        // Broadcast so the axios client interceptor can also react
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("auth:logout"));
+        }
+      },
+
+      fetchMe: async () => {
+        set({ isLoading: true, error: null });
+        try {
+          const user = await authApi.getMe();
+          set({ user, isAuthenticated: true, isLoading: false });
+        } catch {
+          // Token is invalid – force a clean logout
+          clearTokens();
+          set({ user: null, isAuthenticated: false, isLoading: false });
+        }
+      },
+
+      setUser: (user: UserProfile) => set({ user }),
+
+      clearError: () => set({ error: null }),
+    }),
+    {
+      name: "pathfind-auth",
+      // Only persist user data – tokens live in localStorage separately
+      partialize: (state) => ({
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+    }
+  )
+);
+
+// ─── Auth event listener (logout on token expiry) ────────────────────────────
+
+if (typeof window !== "undefined") {
+  window.addEventListener("auth:logout", () => {
+    useAuthStore.getState().logout();
+  });
+}

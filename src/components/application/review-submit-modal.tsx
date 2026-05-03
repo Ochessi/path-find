@@ -75,16 +75,9 @@ export function ReviewSubmitModal({
     
     // Add to store
     addApplication({
-      id: `app-${Date.now()}`,
-      jobId: job.id,
-      job,
+      job_id: job.id,
       status: "applied",
-      appliedDate: new Date().toISOString().split("T")[0],
-      lastActivity: "just now",
-      lastActivityDescription: "Application Submitted",
-      notes: "",
-      aiResume: "Tailored resume generated...",
-      aiCoverLetter: "Cover letter generated...",
+      notes: "Tailored resume generated...\nCover letter generated...",
     });
 
     setIsSubmitting(false);

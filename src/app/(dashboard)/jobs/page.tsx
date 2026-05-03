@@ -370,9 +370,12 @@ function FilterSidebar({
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 export default function JobsPage() {
   const router = useRouter();
-  const { jobs, savedJobs, toggleSaveJob } = useJobStore();
+  const { jobs, fetchJobs, isLoading, error } = useJobStore();
 
   // Local filter state (independent from dashboard store)
   const [keyword, setKeyword] = React.useState("");
@@ -382,7 +385,33 @@ export default function JobsPage() {
   const [jobType, setJobType] = React.useState("All Types");
   const [salaryRange, setSalaryRange] = React.useState<[number, number]>([0, 500000]);
   const [remoteOnly, setRemoteOnly] = React.useState(false);
-  const [sortBy, setSortBy] = React.useState<"match" | "recent" | "salary">("match");
+
+  // We can debounce the fetch so it doesn't slam the API on every keystroke
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      fetchJobs({
+        keyword: keyword || undefined,
+        location: location || undefined,
+        industry: industry !== "All Industries" ? industry : undefined,
+        experience_level: experienceLevel !== "All Levels" ? experienceLevel : undefined,
+        job_type: jobType !== "All Types" ? jobType : undefined,
+        salary_min: salaryRange[0] > 0 ? salaryRange[0] : undefined,
+        salary_max: salaryRange[1] < 500000 ? salaryRange[1] : undefined,
+        remote: remoteOnly || undefined,
+      });
+    }, 400);
+
+    return () => clearTimeout(handler);
+  }, [
+    fetchJobs,
+    keyword,
+    location,
+    industry,
+    experienceLevel,
+    jobType,
+    salaryRange,
+    remoteOnly,
+  ]);
 
   const resetFilters = () => {
     setKeyword("");
@@ -404,45 +433,11 @@ export default function JobsPage() {
     salaryRange[0] > 0 || salaryRange[1] < 500000 ? "salary" : "",
   ].filter(Boolean).length;
 
-  const filtered = React.useMemo(() => {
-    let result = [...jobs];
-
-    if (keyword) {
-      const kw = keyword.toLowerCase();
-      result = result.filter(
-        (j) =>
-          j.title.toLowerCase().includes(kw) ||
-          j.company.toLowerCase().includes(kw) ||
-          j.skills.some((s) => s.toLowerCase().includes(kw))
-      );
-    }
-    if (location) {
-      result = result.filter((j) =>
-        j.location.toLowerCase().includes(location.toLowerCase())
-      );
-    }
-    if (industry && industry !== "All Industries") {
-      result = result.filter((j) => j.industry === industry);
-    }
-    if (experienceLevel && experienceLevel !== "All Levels") {
-      result = result.filter((j) => j.experienceLevel === experienceLevel);
-    }
-    if (jobType && jobType !== "All Types") {
-      result = result.filter((j) => j.type === jobType);
-    }
-    if (remoteOnly) {
-      result = result.filter((j) => j.remote);
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      if (sortBy === "match") return b.matchScore - a.matchScore;
-      if (sortBy === "recent") return a.postedDate.localeCompare(b.postedDate);
-      return 0; // salary sort would parse strings
-    });
-
-    return result;
-  }, [jobs, keyword, location, industry, experienceLevel, jobType, remoteOnly, sortBy]);
+  // Local saved state for UI mock since backend bookmarks aren't fully specified
+  const [savedJobs, setSavedJobs] = React.useState<string[]>([]);
+  const toggleSaveJob = (id: string) => {
+    setSavedJobs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
 
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
@@ -452,12 +447,11 @@ export default function JobsPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Job Discovery</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              <span className="font-semibold text-foreground">{filtered.length}</span> curated matches based on your profile
+              <span className="font-semibold text-foreground">{jobs.length}</span> matches found
             </p>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Mobile filter toggle – state lives here via a simple boolean */}
             <Button
               variant="outline"
               size="sm"
@@ -472,22 +466,9 @@ export default function JobsPage() {
                 </Badge>
               )}
             </Button>
-
-            {/* Sort */}
-            <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
-              <SelectTrigger className="h-9 w-[140px] rounded-xl text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="match">Best Match</SelectItem>
-                <SelectItem value="recent">Most Recent</SelectItem>
-                <SelectItem value="salary">Salary</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
-        {/* Mobile search bar */}
         <div className="mt-4 lg:hidden relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -523,7 +504,16 @@ export default function JobsPage() {
 
         {/* Grid */}
         <div className="flex-1 overflow-y-auto pr-1 pb-8 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
-          {filtered.length === 0 ? (
+          {error ? (
+            <div className="flex flex-col items-center justify-center h-64 text-center text-red-500">
+              <p className="font-medium">{error}</p>
+            </div>
+          ) : isLoading ? (
+             <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-3" />
+              <p className="font-medium">Loading jobs...</p>
+            </div>
+          ) : jobs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground border border-dashed rounded-2xl">
               <Search className="h-8 w-8 mb-3 opacity-40" />
               <p className="font-medium">No jobs found</p>
@@ -535,7 +525,7 @@ export default function JobsPage() {
           ) : (
             <AnimatePresence mode="popLayout">
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {filtered.map((job: Job) => (
+                {jobs.map((job: Job) => (
                   <JobGridCard
                     key={job.id}
                     job={job}

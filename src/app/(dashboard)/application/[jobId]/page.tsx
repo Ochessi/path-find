@@ -16,28 +16,67 @@ import {
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { sampleJobs } from "@/lib/data/jobs";
+import { jobsApi } from "@/lib/api/jobs";
+import { type Job } from "@/types";
 import { JobDescriptionPanel } from "@/components/application/job-description-panel";
 import { AiResumeEditor } from "@/components/application/ai-resume-editor";
 import { AiCoverLetterEditor } from "@/components/application/ai-cover-letter-editor";
 import { FormAutofillPreview } from "@/components/application/form-autofill-preview";
 import { ReviewSubmitModal } from "@/components/application/review-submit-modal";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ApplicationPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = params.jobId as string;
-  const job = sampleJobs.find((j) => j.id === jobId) ?? sampleJobs[0];
+  
+  const [job, setJob] = React.useState<Job | null>(null);
+  const [isLoadingJob, setIsLoadingJob] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
 
   const [activeTab, setActiveTab] = React.useState("resume");
   const [isReviewOpen, setIsReviewOpen] = React.useState(false);
   const [isGenerating, setIsGenerating] = React.useState(true);
 
+  React.useEffect(() => {
+    async function fetchJob() {
+      setIsLoadingJob(true);
+      try {
+        const data = await jobsApi.get(jobId);
+        setJob(data);
+      } catch (err) {
+        setError("Failed to load job details.");
+      } finally {
+        setIsLoadingJob(false);
+      }
+    }
+    fetchJob();
+  }, [jobId]);
+
   // Simulate initial AI generation
   React.useEffect(() => {
+    if (!job) return;
     const timer = setTimeout(() => setIsGenerating(false), 2400);
     return () => clearTimeout(timer);
-  }, []);
+  }, [job]);
+
+  if (isLoadingJob) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-4rem)] p-6 space-y-4">
+        <Skeleton className="h-12 w-1/3" />
+        <Skeleton className="h-[400px] w-full" />
+      </div>
+    );
+  }
+
+  if (error || !job) {
+    return (
+      <div className="flex flex-col h-[calc(100vh-4rem)] items-center justify-center">
+        <p className="text-red-500 font-medium mb-4">{error || "Job not found."}</p>
+        <Button onClick={() => router.back()}>Go Back</Button>
+      </div>
+    );
+  }
 
   return (
     <>

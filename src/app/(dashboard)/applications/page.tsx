@@ -9,12 +9,19 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { KanbanBoard } from "@/components/application/kanban-board";
 import { ListView } from "@/components/application/list-view";
 import { ManualApplicationModal } from "@/components/application/manual-application-modal";
-import { Plus } from "lucide-react";
+import { Plus, Loader2 } from "lucide-react";
+import { useApplicationStore } from "@/store/application.store";
 
 export default function ApplicationsPage() {
   const [searchTerm, setSearchTerm] = React.useState("");
   const [view, setView] = React.useState("board");
   const [manualModalOpen, setManualModalOpen] = React.useState(false);
+
+  const { fetchApplications, isLoading } = useApplicationStore();
+
+  React.useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-theme(spacing.16))] gap-6 pb-6">

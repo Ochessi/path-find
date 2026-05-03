@@ -18,7 +18,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { sampleNotifications } from "@/lib/data/applications";
 import { Notification } from "@/types";
 
 const iconMap: Record<Notification["type"], React.ReactNode> = {
@@ -35,9 +34,7 @@ const SHOW_EMPTY_STATE = true;
 
 export function NotificationDropdown() {
   const router = useRouter();
-  const [notifications, setNotifications] = React.useState<Notification[]>(
-    SHOW_EMPTY_STATE ? [] : sampleNotifications
-  );
+  const [notifications, setNotifications] = React.useState<Notification[]>([]);
   
   // Also showing the empty state unread count as 0 like in the screenshot
   const [activeTab, setActiveTab] = React.useState("all");

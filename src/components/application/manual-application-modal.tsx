@@ -48,31 +48,16 @@ export function ManualApplicationModal({
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 800));
 
-    addApplication({
-      id: `app-${Date.now()}`,
-      jobId: `manual-${Date.now()}`,
-      job: {
-        id: `manual-${Date.now()}`,
-        title: role,
-        company: company,
-        location: "Unknown",
-        type: "Full-time",
-        salary: "Not specified",
-        description: "Manually added application.",
-        requirements: [],
-        skills: [],
-        matchScore: 0,
-        postedDate: "Just now",
-        industry: "Various",
-        experienceLevel: "Varies",
-        remote: false,
-      },
-      status,
-      appliedDate: new Date().toISOString().split("T")[0],
-      lastActivity: "just now",
-      lastActivityDescription: "Application Added manually",
-      notes: notes,
-    });
+    try {
+      await addApplication({
+        job_title: role,
+        job_company: company,
+        status,
+        notes: notes,
+      });
+    } catch (error) {
+      console.error("Failed to add application", error);
+    }
 
     setIsSubmitting(false);
     onOpenChange(false);

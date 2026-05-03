@@ -16,6 +16,7 @@ export function JobFeed({ jobs, selectedJobId, onSelectJob }: JobFeedProps) {
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDisplayJobs(jobs);
   }, [jobs]);
 
