@@ -39,8 +39,8 @@ export function KanbanCard({ application, index }: KanbanCardProps) {
       {(provided, snapshot) => (
         <motion.div
           ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
+          {...(provided.draggableProps as any)}
+          {...(provided.dragHandleProps as any)}
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.05 }}
