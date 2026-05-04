@@ -83,7 +83,7 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
-  name: string;
+  full_name: string;
   email: string;
   password: string;
 }
@@ -93,10 +93,12 @@ export interface AuthResponse {
   refresh: string;  // JWT refresh token
   user: {
     id: string;
-    name: string;
+    full_name: string;
     email: string;
-    avatar: string | null;
-    onboarding_complete: boolean;
+    avatar_url: string | null;
+    profile?: {
+      job_preferences?: { onboarding_complete?: boolean };
+    } | null;
   };
 }
 
@@ -106,6 +108,7 @@ export const authApi = {
 
   register: (data: RegisterPayload) =>
     request<AuthResponse>("/auth/register/", { method: "POST", body: data }),
+
 
   refreshToken: (refresh: string) =>
     request<{ access: string }>("/auth/token/refresh/", {
