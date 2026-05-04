@@ -25,23 +25,32 @@ export const tasksApi = {
 
 /**
  * Polls a Celery task until it reaches SUCCESS or FAILURE.
- * @param taskId     - The task_id returned by the 202 Accepted response
- * @param interval   - Milliseconds between polls (default: 2000)
- * @param maxRetries - Maximum poll attempts before giving up (default: 60 = 2 min)
- * @returns          - Resolves with the final TaskResult
+ * @param taskId          - The task_id returned by the 202 Accepted response
+ * @param interval        - Milliseconds between polls (default: 2000)
+ * @param maxRetries      - Maximum poll attempts before giving up (default: 60 = 2 min)
+ * @param onStatusChange  - Optional callback called whenever the task status changes
+ * @returns               - Resolves with the final TaskResult
  */
 export async function pollTask<T = unknown>(
   taskId: string,
   interval = 2000,
-  maxRetries = 60
+  maxRetries = 60,
+  onStatusChange?: (status: TaskStatus) => void
 ): Promise<TaskResult<T>> {
   let attempts = 0;
+  let lastStatus: TaskStatus | null = null;
 
   return new Promise<TaskResult<T>>((resolve, reject) => {
     const tick = async () => {
       attempts++;
       try {
         const result = await tasksApi.getStatus<T>(taskId);
+
+        // Fire callback on status transitions
+        if (onStatusChange && result.status !== lastStatus) {
+          lastStatus = result.status;
+          onStatusChange(result.status);
+        }
 
         if (result.status === "SUCCESS" || result.status === "FAILURE") {
           resolve(result);
@@ -62,3 +71,4 @@ export async function pollTask<T = unknown>(
     tick();
   });
 }
+

@@ -16,21 +16,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// ─── helpers ───────────────────────────────────────────────────────────────
-
-function getWeekBoundaries(weeksAgo: number): [Date, Date] {
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // 0 = Sun
-  const startOfThisWeek = new Date(now);
-  startOfThisWeek.setDate(now.getDate() - dayOfWeek);
-  startOfThisWeek.setHours(0, 0, 0, 0);
-
-  const start = new Date(startOfThisWeek);
-  start.setDate(start.getDate() - weeksAgo * 7);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 7);
-  return [start, end];
-}
 
 // ─── sub-components ────────────────────────────────────────────────────────
 
@@ -73,26 +58,30 @@ function ApplicationVelocityCard() {
   const labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const dayLabels = days.map((d) => labels[d.getDay() === 0 ? 6 : d.getDay() - 1]);
 
-  // Count per day for this week
-  const [thisStart, thisEnd] = getWeekBoundaries(0);
-  const [lastStart, lastEnd] = getWeekBoundaries(1);
+  const thisWeekBars = days.map((d) => {
+    const nextDay = new Date(d);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return applications.filter((a) => {
+      if (!a.appliedDate) return false;
+      const ad = new Date(a.appliedDate);
+      return ad >= d && ad < nextDay;
+    }).length;
+  });
 
-  const thisWeekTotal = applications.filter((a) => {
-    if (!a.appliedDate) return false;
-    const d = new Date(a.appliedDate);
-    return d >= thisStart && d < thisEnd;
-  }).length;
+  const lastWeekBars = days.map((d) => {
+    const prevWeekDay = new Date(d);
+    prevWeekDay.setDate(prevWeekDay.getDate() - 7);
+    const nextDay = new Date(prevWeekDay);
+    nextDay.setDate(nextDay.getDate() + 1);
+    return applications.filter((a) => {
+      if (!a.appliedDate) return false;
+      const ad = new Date(a.appliedDate);
+      return ad >= prevWeekDay && ad < nextDay;
+    }).length;
+  });
 
-  const lastWeekTotal = applications.filter((a) => {
-    if (!a.appliedDate) return false;
-    const d = new Date(a.appliedDate);
-    return d >= lastStart && d < lastEnd;
-  }).length;
-
-  // Simulate daily distribution for a richer demo (spread sample data across 7 days)
-  // In production this would come from real timestamps
-  const thisWeekBars =  [2, 4, 3, 6, 5, 1, 3];
-  const lastWeekBars =  [1, 3, 5, 2, 4, 2, 2];
+  const thisWeekTotal = thisWeekBars.reduce((sum, val) => sum + val, 0);
+  const lastWeekTotal = lastWeekBars.reduce((sum, val) => sum + val, 0);
 
   const maxVal = Math.max(...thisWeekBars, ...lastWeekBars, 1);
   const delta = thisWeekTotal - lastWeekTotal;

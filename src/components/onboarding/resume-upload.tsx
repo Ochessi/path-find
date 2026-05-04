@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { UploadCloud, File, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { jobsApi } from "@/lib/api/jobs";
+import { pollTask } from "@/lib/api/tasks";
 
 interface ResumeUploadProps {
-  onUploadComplete: () => void;
+  onUploadComplete: (data?: any) => void;
 }
 
 export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
@@ -13,6 +15,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -20,25 +23,31 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
     }
   };
 
-  const handleUpload = (selectedFile: File) => {
+  const handleUpload = async (selectedFile: File) => {
     setFile(selectedFile);
     setIsUploading(true);
+    setProgress(10);
+    setError(null);
     
-    // Simulate upload progress
-    let currentProgress = 0;
-    const interval = setInterval(() => {
-      currentProgress += 10;
-      setProgress(currentProgress);
+    try {
+      const { task_id } = await jobsApi.parseResume(selectedFile);
+      setProgress(50);
       
-      if (currentProgress >= 100) {
-        clearInterval(interval);
+      const result = await pollTask<any>(task_id, 2000, 60);
+      
+      if (result.status === "SUCCESS") {
+        setProgress(100);
         setTimeout(() => {
           setIsUploading(false);
-          // Optional: auto-advance
-          // onUploadComplete();
+          onUploadComplete(result.result);
         }, 500);
+      } else {
+        throw new Error(result.error || "Parsing failed");
       }
-    }, 200);
+    } catch (err: any) {
+      setError(err.message || "Failed to upload or parse resume");
+      setIsUploading(false);
+    }
   };
 
   const resetUpload = () => {
@@ -101,7 +110,7 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
           {isUploading || progress === 100 ? (
             <div className="space-y-2">
               <div className="flex justify-between text-xs font-medium text-muted-foreground">
-                <span>{progress < 100 ? "Uploading..." : "Complete"}</span>
+                <span>{progress < 100 ? "Uploading and Parsing..." : "Complete"}</span>
                 <span>{progress}%</span>
               </div>
               <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
@@ -113,7 +122,14 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
             </div>
           ) : null}
 
-          {!isUploading && progress === 100 && (
+          {error && (
+             <div className="bg-red-500/10 text-red-600 dark:text-red-400 p-3 rounded-lg flex items-center gap-2 text-sm mt-2">
+               <X className="h-4 w-4" />
+               {error}
+             </div>
+          )}
+
+          {!isUploading && progress === 100 && !error && (
              <div className="bg-green-500/10 text-green-600 dark:text-green-400 p-3 rounded-lg flex items-center gap-2 text-sm mt-2">
                <CheckCircle2 className="h-4 w-4" />
                Upload successful. Ready to parse.

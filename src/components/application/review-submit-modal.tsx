@@ -14,6 +14,8 @@ import {
   Building2,
   BookmarkPlus,
   BookmarkCheck,
+  XCircle,
+  Bot,
 } from "lucide-react";
 
 import {
@@ -27,6 +29,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Job } from "@/types";
 import { useApplicationStore } from "@/store/application.store";
+import { applicationsApi } from "@/lib/api/applications";
+import { pollTask } from "@/lib/api/tasks";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ReviewSubmitModalProps {
   job: Job;
@@ -34,83 +40,139 @@ interface ReviewSubmitModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
+type SubmitPhase =
+  | "idle"
+  | "creating"
+  | "queuing"
+  | "pending"
+  | "started"
+  | "success"
+  | "failure";
+
+const STATUS_MESSAGES: Record<SubmitPhase, string> = {
+  idle: "",
+  creating: "Creating application record…",
+  queuing: "Connecting to Browserbase…",
+  pending: "Waiting for an automation worker…",
+  started: "Filling out the application form…",
+  success: "Application submitted!",
+  failure: "Submission failed. Please try manually.",
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
+
 export function ReviewSubmitModal({
   job,
   open,
   onOpenChange,
 }: ReviewSubmitModalProps) {
   const router = useRouter();
-  const { addApplication } = useApplicationStore();
-  const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isSuccess, setIsSuccess] = React.useState(false);
+  // We use applicationsApi.create() directly so we get the returned id;
+  // state sync is done via useApplicationStore.setState() below.
+
+  const [phase, setPhase] = React.useState<SubmitPhase>("idle");
+  const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = React.useState(false);
   const [isTemplateSaved, setIsTemplateSaved] = React.useState(false);
+
+  const isSubmitting = ["creating", "queuing", "pending", "started"].includes(phase);
+  const isSuccess = phase === "success";
+  const isFailure = phase === "failure";
 
   const checklist = [
     {
       id: "resume",
       label: "AI-Tailored Resume Selected",
       icon: <FileText className="h-4 w-4" />,
-      status: "complete",
     },
     {
       id: "cover-letter",
       label: "Cover Letter Tone Optimized",
       icon: <Mail className="h-4 w-4" />,
-      status: "complete",
     },
     {
       id: "form",
       label: "Application Fields Reviewed",
       icon: <ListChecks className="h-4 w-4" />,
-      status: "complete",
     },
   ];
 
   const handleSubmit = async () => {
-    setIsSubmitting(true);
-    
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    
-    // Add to store
-    addApplication({
-      job_id: job.id,
-      status: "applied",
-      notes: "Tailored resume generated...\nCover letter generated...",
-    });
+    setErrorMsg(null);
 
-    setIsSubmitting(false);
-    setIsSuccess(true);
+    try {
+      // ── Step 1: Create the Application record ──────────────────────────
+      // applicationsApi.create() returns the full Application object (including
+      // its server-assigned id) immediately — no secondary list call needed.
+      setPhase("creating");
+      const newApp = await applicationsApi.create({
+        job_id: job.id,
+        status: "applied",
+        notes: "Submitted via Pathfind portal automation.",
+      });
 
-    // Redirect after success animation
-    setTimeout(() => {
-      onOpenChange(false);
-      router.push("/applications");
-      
-      // Reset state after transition
-      setTimeout(() => setIsSuccess(false), 500);
-    }, 1500);
+      // Keep the Zustand store in sync without a redundant API round-trip.
+      useApplicationStore.setState((s) => ({
+        applications: [newApp, ...s.applications],
+      }));
+
+      // ── Step 2: Enqueue the portal submission task ─────────────────────
+      setPhase("queuing");
+      const { task_id } = await applicationsApi.submitToPortal(newApp.id);
+
+      // ── Step 3: Poll until done ────────────────────────────────────────
+      setPhase("pending");
+
+      await pollTask(
+        task_id,
+        3000,  // poll every 3 s
+        100,   // up to 5 minutes
+        (status) => {
+          // Live status updates while polling
+          if (status === "STARTED") setPhase("started");
+          else if (status === "PENDING" || status === "RETRY")
+            setPhase("pending");
+        }
+      );
+
+      setPhase("success");
+
+      // Navigate away after the success animation plays
+      setTimeout(() => {
+        onOpenChange(false);
+        router.push("/applications");
+        setTimeout(() => setPhase("idle"), 500);
+      }, 2000);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Submission failed. Please try again.";
+      setErrorMsg(msg);
+      setPhase("failure");
+    }
   };
 
   const handleSaveTemplate = async () => {
     setIsSavingTemplate(true);
-    // Simulate API call to save templates
     await new Promise((resolve) => setTimeout(resolve, 800));
     setIsSavingTemplate(false);
     setIsTemplateSaved(true);
-    
-    // Reset the success state after a few seconds
-    setTimeout(() => {
-      setIsTemplateSaved(false);
-    }, 3000);
+    setTimeout(() => setIsTemplateSaved(false), 3000);
+  };
+
+  const handleReset = () => {
+    setPhase("idle");
+    setErrorMsg(null);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(val) => !isSubmitting && !isSuccess && onOpenChange(val)}>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => !isSubmitting && !isSuccess && onOpenChange(val)}
+    >
       <DialogContent className="sm:max-w-[425px]">
         <AnimatePresence mode="wait">
-          {isSuccess ? (
+          {/* ── Success State ───────────────────────────────────────────── */}
+          {isSuccess && (
             <motion.div
               key="success"
               initial={{ opacity: 0, scale: 0.95 }}
@@ -127,7 +189,137 @@ export function ReviewSubmitModal({
                 Your application to {job.company} is on its way.
               </p>
             </motion.div>
-          ) : (
+          )}
+
+          {/* ── Failure State ────────────────────────────────────────────── */}
+          {isFailure && (
+            <motion.div
+              key="failure"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex flex-col items-center justify-center py-10 text-center gap-4"
+            >
+              <div className="h-16 w-16 rounded-full bg-red-500/10 flex items-center justify-center">
+                <XCircle className="h-8 w-8 text-red-500" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold tracking-tight mb-2">
+                  Submission Failed
+                </h2>
+                <p className="text-sm text-muted-foreground max-w-[280px]">
+                  {errorMsg || "Something went wrong during automated submission."}
+                </p>
+              </div>
+              <div className="flex gap-2 mt-2">
+                <Button variant="outline" onClick={() => onOpenChange(false)}>
+                  Close
+                </Button>
+                <Button onClick={handleReset}>Try Again</Button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── In-progress State ────────────────────────────────────────── */}
+          {isSubmitting && (
+            <motion.div
+              key="progress"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex flex-col items-center justify-center py-12 text-center gap-6"
+            >
+              <div className="relative h-16 w-16">
+                <div className="absolute inset-0 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                  <Bot className="h-7 w-7 text-emerald-600" />
+                </div>
+                <svg
+                  className="absolute inset-0 h-16 w-16 -rotate-90"
+                  viewBox="0 0 64 64"
+                >
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    className="text-emerald-500/20"
+                  />
+                  <circle
+                    cx="32"
+                    cy="32"
+                    r="28"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="3"
+                    strokeDasharray="175.9"
+                    strokeDashoffset="44"
+                    strokeLinecap="round"
+                    className="text-emerald-500 animate-[spin_2s_linear_infinite]"
+                    style={{ animationName: "dash" }}
+                  />
+                </svg>
+              </div>
+
+              <div>
+                <p className="font-semibold text-base">Submitting your application…</p>
+                <motion.p
+                  key={phase}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-sm text-muted-foreground mt-1"
+                >
+                  {STATUS_MESSAGES[phase]}
+                </motion.p>
+              </div>
+
+              {/* Progress steps */}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {(
+                  [
+                    ["creating", "Creating"],
+                    ["queuing", "Queuing"],
+                    ["pending", "Waiting"],
+                    ["started", "Filling form"],
+                  ] as [SubmitPhase, string][]
+                ).map(([step, label], i, arr) => {
+                  const phaseOrder: SubmitPhase[] = [
+                    "creating",
+                    "queuing",
+                    "pending",
+                    "started",
+                  ];
+                  const currentIdx = phaseOrder.indexOf(phase);
+                  const stepIdx = phaseOrder.indexOf(step);
+                  const done = stepIdx < currentIdx;
+                  const active = stepIdx === currentIdx;
+
+                  return (
+                    <React.Fragment key={step}>
+                      <span
+                        className={
+                          done
+                            ? "text-emerald-500 font-medium"
+                            : active
+                            ? "text-foreground font-semibold"
+                            : "opacity-40"
+                        }
+                      >
+                        {done ? "✓ " : ""}
+                        {label}
+                      </span>
+                      {i < arr.length - 1 && (
+                        <span className="opacity-30">›</span>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Review State (idle) ──────────────────────────────────────── */}
+          {phase === "idle" && (
             <motion.div
               key="review"
               initial={{ opacity: 0 }}
@@ -137,7 +329,8 @@ export function ReviewSubmitModal({
               <DialogHeader>
                 <DialogTitle>Review your application</DialogTitle>
                 <DialogDescription>
-                  Make sure everything looks good before we send it to {job.company}.
+                  Make sure everything looks good before we send it to{" "}
+                  {job.company}.
                 </DialogDescription>
               </DialogHeader>
 
@@ -146,10 +339,12 @@ export function ReviewSubmitModal({
                 <div className="p-4 rounded-xl border bg-muted/30 space-y-3">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 shrink-0 rounded-lg bg-background border flex items-center justify-center text-lg font-bold">
-                      {job.companyLogo || job.company[0]}
+                      {job.company[0]}
                     </div>
                     <div>
-                      <h4 className="font-medium text-sm leading-none mb-1.5">{job.title}</h4>
+                      <h4 className="font-medium text-sm leading-none mb-1.5">
+                        {job.title}
+                      </h4>
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <Building2 className="h-3.5 w-3.5" />
                         {job.company}
@@ -173,12 +368,8 @@ export function ReviewSubmitModal({
                         className="flex items-center justify-between p-3 rounded-lg border bg-card"
                       >
                         <div className="flex items-center gap-3">
-                          <div className="text-muted-foreground">
-                            {item.icon}
-                          </div>
-                          <span className="text-sm font-medium">
-                            {item.label}
-                          </span>
+                          <div className="text-muted-foreground">{item.icon}</div>
+                          <span className="text-sm font-medium">{item.label}</span>
                         </div>
                         <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                       </motion.div>
@@ -190,7 +381,9 @@ export function ReviewSubmitModal({
                 <div className="flex gap-2 p-3 rounded-lg bg-orange-500/10 text-orange-600 dark:text-orange-400 text-sm">
                   <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
                   <p className="leading-relaxed">
-                    By submitting, you confirm that you have reviewed all AI-generated content for accuracy.
+                    By submitting, you confirm that you have reviewed all
+                    AI-generated content for accuracy. Pathfind will fill and
+                    submit the form automatically.
                   </p>
                 </div>
               </div>
@@ -200,7 +393,9 @@ export function ReviewSubmitModal({
                   variant="ghost"
                   onClick={handleSaveTemplate}
                   disabled={isSubmitting || isSavingTemplate || isTemplateSaved}
-                  className={isTemplateSaved ? "text-emerald-600" : "text-muted-foreground"}
+                  className={
+                    isTemplateSaved ? "text-emerald-600" : "text-muted-foreground"
+                  }
                 >
                   {isSavingTemplate ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -220,18 +415,13 @@ export function ReviewSubmitModal({
                     Cancel
                   </Button>
                   <Button
+                    id="submit-application-btn"
                     onClick={handleSubmit}
                     disabled={isSubmitting}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[140px]"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[160px]"
                   >
-                    {isSubmitting ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <>
-                        <SendHorizonal className="h-4 w-4 mr-2" />
-                        Submit Application
-                      </>
-                    )}
+                    <SendHorizonal className="h-4 w-4 mr-2" />
+                    Submit Application
                   </Button>
                 </div>
               </DialogFooter>

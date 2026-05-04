@@ -25,14 +25,50 @@ type Step = 1 | 2 | 3 | 4;
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [step, setStep] = useState<Step>(1);
+  const [parsedData, setParsedData] = useState<any>(null);
 
-  const handleNext = () => {
-    if (step < 4) setStep((step + 1) as Step);
-    else {
+  const [profileData, setProfileData] = useState({
+    summary: "",
+    linkedin: "",
+    website: "",
+    location: "",
+  });
+
+  const [preferencesData, setPreferencesData] = useState({
+    job_types: ["Full-time"],
+    industries: ["SaaS"],
+    salary_min: 120000,
+    remote: true,
+  });
+
+  const handleNext = async () => {
+    if (step < 4) {
+      setStep((step + 1) as Step);
+    } else {
       // Finish onboarding
-      router.push("/dashboard");
+      try {
+        const { authApi } = await import("@/lib/api/auth");
+        await authApi.patchMe({
+          summary: profileData.summary,
+          linkedin: profileData.linkedin,
+          website: profileData.website,
+          location: profileData.location,
+          preferences: {
+            job_types: preferencesData.job_types,
+            industries: preferencesData.industries,
+            salary_min: preferencesData.salary_min,
+            remote: preferencesData.remote,
+          },
+          onboarding_complete: true,
+        });
+        const updatedUser = await authApi.getMe();
+        setUser(updatedUser);
+        router.push("/dashboard");
+      } catch (err) {
+        console.error("Failed to complete onboarding:", err);
+      }
     }
   };
 
@@ -76,10 +112,25 @@ export default function OnboardingPage() {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
-              {step === 1 && <ResumeUpload onUploadComplete={handleNext} />}
-              {step === 2 && <AIParsingPreview />}
-              {step === 3 && <ProfileCompletion />}
-              {step === 4 && <PreferencesSetup />}
+              {step === 1 && <ResumeUpload onUploadComplete={(data) => {
+                if (data) {
+                  setParsedData(data);
+                  const pData = data.profile_updated;
+                  if (pData) {
+                    setProfileData((prev) => ({
+                      ...prev,
+                      summary: pData.summary || prev.summary,
+                      location: pData.location || prev.location,
+                      linkedin: pData.linkedin || prev.linkedin,
+                      website: pData.portfolio_url || prev.website,
+                    }));
+                  }
+                }
+                handleNext();
+              }} />}
+              {step === 2 && <AIParsingPreview parsedData={parsedData} />}
+              {step === 3 && <ProfileCompletion data={profileData} onChange={setProfileData} />}
+              {step === 4 && <PreferencesSetup data={preferencesData} onChange={setPreferencesData} />}
             </motion.div>
           </AnimatePresence>
         </CardContent>

@@ -118,7 +118,7 @@ export const jobsApi = {
    */
   parseResume: (file: File) => {
     const form = new FormData();
-    form.append("resume", file);
+    form.append("file", file);
     return apiClient
       .post<TaskAccepted>("/api/jobs/resume/parse/", form, {
         headers: { "Content-Type": "multipart/form-data" },

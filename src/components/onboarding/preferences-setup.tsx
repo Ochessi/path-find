@@ -1,29 +1,38 @@
 "use client";
 
-import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 
-export function PreferencesSetup() {
-  const [selectedTypes, setSelectedTypes] = useState(["Full-time"]);
-  const [selectedIndustries, setSelectedIndustries] = useState(["SaaS", "FinTech"]);
-  const [salary, setSalary] = useState([120]);
+export interface PreferencesData {
+  job_types: string[];
+  industries: string[];
+  salary_min: number;
+  remote: boolean;
+}
 
+interface PreferencesSetupProps {
+  data: PreferencesData;
+  onChange: (data: PreferencesData) => void;
+}
+
+export function PreferencesSetup({ data, onChange }: PreferencesSetupProps) {
   const jobTypes = ["Full-time", "Part-time", "Contract", "Freelance", "Internship"];
   const industries = ["SaaS", "FinTech", "HealthTech", "EdTech", "E-commerce", "AI/ML", "Web3"];
 
   const toggleType = (type: string) => {
-    setSelectedTypes(prev => 
-      prev.includes(type) ? prev.filter(t => t !== type) : [...prev, type]
-    );
+    const newTypes = data.job_types.includes(type) 
+      ? data.job_types.filter(t => t !== type) 
+      : [...data.job_types, type];
+    onChange({ ...data, job_types: newTypes });
   };
 
   const toggleIndustry = (ind: string) => {
-    setSelectedIndustries(prev => 
-      prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind]
-    );
+    const newIndustries = data.industries.includes(ind) 
+      ? data.industries.filter(i => i !== ind) 
+      : [...data.industries, ind];
+    onChange({ ...data, industries: newIndustries });
   };
 
   return (
@@ -34,8 +43,8 @@ export function PreferencesSetup() {
           {jobTypes.map(type => (
             <Badge 
               key={type}
-              variant={selectedTypes.includes(type) ? "default" : "outline"}
-              className={`cursor-pointer px-3 py-1 ${selectedTypes.includes(type) ? 'bg-primary' : 'hover:bg-muted'}`}
+              variant={data.job_types.includes(type) ? "default" : "outline"}
+              className={`cursor-pointer px-3 py-1 ${data.job_types.includes(type) ? 'bg-primary' : 'hover:bg-muted'}`}
               onClick={() => toggleType(type)}
             >
               {type}
@@ -50,8 +59,8 @@ export function PreferencesSetup() {
           {industries.map(ind => (
             <Badge 
               key={ind}
-              variant={selectedIndustries.includes(ind) ? "default" : "outline"}
-              className={`cursor-pointer px-3 py-1 ${selectedIndustries.includes(ind) ? 'bg-primary' : 'hover:bg-muted'}`}
+              variant={data.industries.includes(ind) ? "default" : "outline"}
+              className={`cursor-pointer px-3 py-1 ${data.industries.includes(ind) ? 'bg-primary' : 'hover:bg-muted'}`}
               onClick={() => toggleIndustry(ind)}
             >
               {ind}
@@ -63,11 +72,11 @@ export function PreferencesSetup() {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <Label>Minimum Base Salary</Label>
-          <span className="font-semibold">${salary[0]}k+ / yr</span>
+          <span className="font-semibold">${Math.floor(data.salary_min / 1000)}k+ / yr</span>
         </div>
         <Slider 
-          value={salary} 
-          onValueChange={(val) => setSalary(val as number[])} 
+          value={[Math.floor(data.salary_min / 1000)]} 
+          onValueChange={(val) => onChange({ ...data, salary_min: (val as number[])[0] * 1000 })} 
           max={300} 
           min={50} 
           step={10} 
@@ -82,7 +91,10 @@ export function PreferencesSetup() {
             Include fully remote positions in my matches
           </p>
         </div>
-        <Switch defaultChecked />
+        <Switch 
+          checked={data.remote} 
+          onCheckedChange={(checked) => onChange({ ...data, remote: checked })} 
+        />
       </div>
     </div>
   );

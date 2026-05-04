@@ -45,7 +45,10 @@ export interface PaginatedApplications {
 }
 
 export interface GeneratePayload {
-  application_id: string;
+  /** Preferred: derive the job listing from an existing application. */
+  application_id?: string;
+  /** Fallback: supply a job listing ID directly (e.g. before an Application record exists). */
+  job_listing_id?: string;
   tone?: "professional" | "enthusiastic" | "conversational";
 }
 
@@ -142,5 +145,15 @@ export const applicationsApi = {
   generate: (data: GeneratePayload) =>
     apiClient
       .post<TaskAccepted>("/api/jobs/applications/generate/", data)
+      .then((r) => r.data),
+
+  /**
+   * POST /api/jobs/applications/<id>/submit-portal/
+   * Enqueue the Browserbase + Playwright form-fill automation for this
+   * application.  Returns 202 Accepted with task_id – poll via tasksApi.
+   */
+  submitToPortal: (applicationId: string) =>
+    apiClient
+      .post<TaskAccepted>(`/api/jobs/applications/${applicationId}/submit-portal/`)
       .then((r) => r.data),
 };
