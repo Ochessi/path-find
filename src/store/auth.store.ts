@@ -12,11 +12,17 @@ interface AuthState {
   setUser: (user: User) => void;
 }
 
-const storedToken = typeof window !== "undefined" ? localStorage.getItem("pathfind_token") : null;
-const storedUserJson = typeof window !== "undefined" ? localStorage.getItem("pathfind_user") : null;
-const storedUser = storedUserJson ? (JSON.parse(storedUserJson) as User) : null;
+function getStoredAuth(): { token: string | null; user: User | null } {
+  if (typeof window === "undefined") return { token: null, user: null };
+  const token = localStorage.getItem("pathfind_token");
+  const userJson = localStorage.getItem("pathfind_user");
+  const user = userJson ? (JSON.parse(userJson) as User) : null;
+  return { token, user };
+}
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set) => {
+  const { token: storedToken, user: storedUser } = getStoredAuth();
+  return {
   user: storedUser,
   token: storedToken,
   isAuthenticated: Boolean(storedToken && storedUser),
@@ -90,4 +96,5 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
     set({ user });
   },
-}));
+  };
+});
