@@ -84,11 +84,17 @@ export const jobsApi = {
    */
   list: (params?: JobListParams) =>
     apiClient
-      .get<PaginatedResponse<JobListingResponse>>("/api/jobs/listings/", { params })
-      .then((r) => ({
-        ...r.data,
-        results: r.data.results.map(mapJobListing),
-      })),
+      .get("/api/jobs/listings/", { params })
+      .then((r) => {
+        const data = r.data;
+        const results = Array.isArray(data) ? data : (data?.results || []);
+        const count = data?.count ?? results.length;
+        return {
+          ...data,
+          count,
+          results: results.map(mapJobListing),
+        };
+      }),
 
   /**
    * GET /api/jobs/listings/<id>/
@@ -105,11 +111,17 @@ export const jobsApi = {
    */
   feed: (params?: Pick<JobListParams, "page" | "page_size">) =>
     apiClient
-      .get<PaginatedResponse<JobListingResponse>>("/api/jobs/feed/", { params })
-      .then((r) => ({
-        ...r.data,
-        results: r.data.results.map(mapJobListing),
-      })),
+      .get("/api/jobs/feed/", { params })
+      .then((r) => {
+        const data = r.data;
+        const results = Array.isArray(data) ? data : (data?.results || []);
+        const count = data?.count ?? results.length;
+        return {
+          ...data,
+          count,
+          results: results.map(mapJobListing),
+        };
+      }),
 
   /**
    * POST /api/jobs/resume/parse/
