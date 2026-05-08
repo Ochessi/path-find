@@ -102,10 +102,15 @@ export const applicationsApi = {
   list: (params?: { status?: ApplicationStatus; search?: string; page?: number }) =>
     apiClient
       .get<PaginatedApplicationsResponse>("/api/jobs/applications/", { params })
-      .then((r) => ({
-        ...r.data,
-        results: r.data.results.map(mapApplication),
-      })),
+      .then((r) => {
+        const raw = r.data;
+        const results = Array.isArray(raw?.results) ? raw.results : (Array.isArray(raw) ? raw as unknown as ApplicationResponse[] : []);
+        return {
+          ...raw,
+          count: raw?.count ?? results.length,
+          results: results.map(mapApplication),
+        };
+      }),
 
   /** GET /api/jobs/applications/<id>/ */
   get: (id: string) =>

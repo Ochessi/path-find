@@ -29,7 +29,7 @@ export const useApplicationStore = create<ApplicationState>()((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const data = await applicationsApi.list({ status });
-      set({ applications: data.results, isLoading: false });
+      set({ applications: Array.isArray(data.results) ? data.results : [], isLoading: false });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to load applications.";
       set({ isLoading: false, error: message });
