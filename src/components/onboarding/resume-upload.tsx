@@ -8,9 +8,11 @@ import { pollTask } from "@/lib/api/tasks";
 
 interface ResumeUploadProps {
   onUploadComplete: (data?: any) => void;
+  /** Called when the user deliberately skips the upload step */
+  onSkip: () => void;
 }
 
-export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
+export function ResumeUpload({ onUploadComplete, onSkip }: ResumeUploadProps) {
   const [isHovering, setIsHovering] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -141,7 +143,10 @@ export function ResumeUpload({ onUploadComplete }: ResumeUploadProps) {
       {!file && (
         <div className="flex items-center justify-center">
           <p className="text-sm text-muted-foreground">
-            Don&apos;t have a resume? <Button variant="link" className="p-0 h-auto">Skip this step</Button>
+            Don&apos;t have a resume?{" "}
+            <Button variant="link" className="p-0 h-auto" onClick={onSkip}>
+              Fill in your profile manually
+            </Button>
           </p>
         </div>
       )}

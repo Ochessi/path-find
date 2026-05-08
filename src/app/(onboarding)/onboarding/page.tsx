@@ -15,18 +15,68 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 
-// Sub-components will be imported here
 import { ResumeUpload } from "@/components/onboarding/resume-upload";
 import { AIParsingPreview } from "@/components/onboarding/ai-parsing-preview";
 import { ProfileCompletion } from "@/components/onboarding/profile-completion";
 import { PreferencesSetup } from "@/components/onboarding/preferences-setup";
+import { ManualProfile, type ManualProfileData } from "@/components/onboarding/manual-profile";
 
-type Step = 1 | 2 | 3 | 4;
+// ─── Step definitions ────────────────────────────────────────────────────────
+//
+// AI path  (resume uploaded): upload → ai-preview → profile-completion → preferences
+// Manual path (skip):         upload → manual-profile → preferences
+//
+type StepId =
+  | "upload"
+  | "ai-preview"
+  | "profile-completion"
+  | "manual-profile"
+  | "preferences";
+
+const AI_STEPS: StepId[] = ["upload", "ai-preview", "profile-completion", "preferences"];
+const MANUAL_STEPS: StepId[] = ["upload", "manual-profile", "preferences"];
+
+function stepMeta(stepId: StepId) {
+  switch (stepId) {
+    case "upload":
+      return {
+        title: "Upload your resume",
+        description: "Start by uploading your current resume. We'll extract your details.",
+      };
+    case "ai-preview":
+      return {
+        title: "AI parsing complete",
+        description: "Review what our AI extracted from your document.",
+      };
+    case "profile-completion":
+      return {
+        title: "Complete your profile",
+        description: "Fill in any gaps so we can match you perfectly.",
+      };
+    case "manual-profile":
+      return {
+        title: "Build your profile",
+        description: "Tell us about yourself so we can find the best matches for you.",
+      };
+    case "preferences":
+      return {
+        title: "Set your preferences",
+        description: "Tell us what you're looking for in your next role.",
+      };
+  }
+}
+
+// ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, setUser } = useAuthStore();
-  const [step, setStep] = useState<Step>(1);
+  const { setUser } = useAuthStore();
+
+  // Which path are we on? null until the user makes the choice on step 1.
+  const [path, setPath] = useState<"ai" | "manual" | null>(null);
+  const [stepIndex, setStepIndex] = useState(0);
+
+  // Data stores
   const [parsedData, setParsedData] = useState<any>(null);
 
   const [profileData, setProfileData] = useState({
@@ -36,20 +86,95 @@ export default function OnboardingPage() {
     location: "",
   });
 
+  const [manualData, setManualData] = useState<ManualProfileData>({
+    name: "",
+    email: "",
+    role: "",
+    summary: "",
+    location: "",
+    linkedin: "",
+    website: "",
+    skills: [],
+  });
+  const [manualValid, setManualValid] = useState(false);
+
   const [preferencesData, setPreferencesData] = useState({
-    job_types: ["Full-time"],
-    industries: ["SaaS"],
-    salary_min: 120000,
-    remote: true,
+    job_types: [] as string[],
+    industries: [] as string[],
+    salary_min: 0,
+    remote: false,
   });
 
-  const handleNext = async () => {
-    if (step < 4) {
-      setStep((step + 1) as Step);
-    } else {
-      // Finish onboarding
-      try {
-        const { authApi } = await import("@/lib/api/auth");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Derive current step list from chosen path (default to AI path for progress display)
+  const steps = path === "manual" ? MANUAL_STEPS : AI_STEPS;
+  const currentStepId: StepId = steps[stepIndex] ?? "upload";
+  const { title, description } = stepMeta(currentStepId);
+
+  const totalSteps = steps.length;
+  const progress = ((stepIndex + 1) / totalSteps) * 100;
+
+  // ─── Navigation ─────────────────────────────────────────────────────────────
+
+  const goNext = () => setStepIndex((i) => i + 1);
+  const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
+
+  /** Called when the user uploads a resume successfully */
+  const handleResumeUploaded = (data: any) => {
+    setPath("ai");
+    if (data) {
+      setParsedData(data);
+      const p = data.profile_updated;
+      if (p) {
+        setProfileData((prev) => ({
+          ...prev,
+          summary: p.summary || prev.summary,
+          location: p.location || prev.location,
+          linkedin: p.linkedin || prev.linkedin,
+          website: p.portfolio_url || prev.website,
+        }));
+      }
+    }
+    goNext();
+  };
+
+  /** Called when the user clicks "Skip" on the upload step */
+  const handleSkipResume = () => {
+    setPath("manual");
+    setStepIndex(1); // jump to manual-profile (index 1 in MANUAL_STEPS)
+  };
+
+  /** Final submission — same DB shape for both paths */
+  const handleFinish = async () => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      const { authApi } = await import("@/lib/api/auth");
+
+      if (path === "manual") {
+        // Persist full manual profile + preferences in one PATCH
+        await authApi.patchMe({
+          name: manualData.name,
+          email: manualData.email,
+          headline: manualData.role,
+          summary: manualData.summary,
+          location: manualData.location,
+          linkedin: manualData.linkedin,
+          website: manualData.website,
+          skills: manualData.skills,
+          preferences: {
+            job_types: preferencesData.job_types,
+            industries: preferencesData.industries,
+            salary_min: preferencesData.salary_min,
+            remote: preferencesData.remote,
+          },
+          onboarding_complete: true,
+        });
+      } else {
+        // AI path — profile fields were pre-filled from parsed data and
+        // optionally edited in the profile-completion step
         await authApi.patchMe({
           summary: profileData.summary,
           linkedin: profileData.linkedin,
@@ -63,88 +188,126 @@ export default function OnboardingPage() {
           },
           onboarding_complete: true,
         });
-        const updatedUser = await authApi.getMe();
-        setUser(updatedUser);
-        router.push("/dashboard");
-      } catch (err) {
-        console.error("Failed to complete onboarding:", err);
       }
+
+      const updatedUser = await authApi.getMe();
+      setUser(updatedUser);
+      router.push("/dashboard");
+    } catch (err: any) {
+      console.error("Failed to complete onboarding:", err);
+      setSubmitError("Something went wrong. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleBack = () => {
-    if (step > 1) setStep((step - 1) as Step);
+  // ─── Continue / back button logic ────────────────────────────────────────────
+
+  const isLastStep = stepIndex === steps.length - 1;
+
+  const isContinueDisabled =
+    isSubmitting ||
+    (currentStepId === "manual-profile" && !manualValid);
+
+  const handleContinue = () => {
+    if (isLastStep) {
+      handleFinish();
+    } else {
+      goNext();
+    }
   };
 
-  const progress = (step / 4) * 100;
+  // ─── Render ──────────────────────────────────────────────────────────────────
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-6">
+      {/* Progress bar */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm font-medium text-muted-foreground">
-          <span>Step {step} of 4</span>
-          <span>{progress}%</span>
+          <span>Step {stepIndex + 1} of {totalSteps}</span>
+          <span>{Math.round(progress)}%</span>
         </div>
         <Progress value={progress} className="h-2" />
       </div>
 
       <Card className="shadow-lg border-muted">
         <CardHeader>
-          <CardTitle className="text-2xl">
-            {step === 1 && "Upload your resume"}
-            {step === 2 && "Magic in progress"}
-            {step === 3 && "Complete your profile"}
-            {step === 4 && "Set your preferences"}
-          </CardTitle>
-          <CardDescription>
-            {step === 1 && "Start by uploading your current resume. We'll extract your details."}
-            {step === 2 && "Review what our AI extracted from your document."}
-            {step === 3 && "Fill in any gaps so we can match you perfectly."}
-            {step === 4 && "Tell us what you're looking for in your next role."}
-          </CardDescription>
+          <CardTitle className="text-2xl">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
         </CardHeader>
+
         <CardContent className="min-h-[400px]">
           <AnimatePresence mode="wait">
             <motion.div
-              key={step}
+              key={currentStepId}
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
-              {step === 1 && <ResumeUpload onUploadComplete={(data) => {
-                if (data) {
-                  setParsedData(data);
-                  const pData = data.profile_updated;
-                  if (pData) {
-                    setProfileData((prev) => ({
-                      ...prev,
-                      summary: pData.summary || prev.summary,
-                      location: pData.location || prev.location,
-                      linkedin: pData.linkedin || prev.linkedin,
-                      website: pData.portfolio_url || prev.website,
-                    }));
-                  }
-                }
-                handleNext();
-              }} />}
-              {step === 2 && <AIParsingPreview parsedData={parsedData} />}
-              {step === 3 && <ProfileCompletion data={profileData} onChange={setProfileData} />}
-              {step === 4 && <PreferencesSetup data={preferencesData} onChange={setPreferencesData} />}
+              {currentStepId === "upload" && (
+                <ResumeUpload
+                  onUploadComplete={handleResumeUploaded}
+                  onSkip={handleSkipResume}
+                />
+              )}
+
+              {currentStepId === "ai-preview" && (
+                <AIParsingPreview parsedData={parsedData} />
+              )}
+
+              {currentStepId === "profile-completion" && (
+                <ProfileCompletion
+                  data={profileData}
+                  onChange={setProfileData}
+                />
+              )}
+
+              {currentStepId === "manual-profile" && (
+                <ManualProfile
+                  data={manualData}
+                  onChange={setManualData}
+                  onValidChange={setManualValid}
+                />
+              )}
+
+              {currentStepId === "preferences" && (
+                <PreferencesSetup
+                  data={preferencesData}
+                  onChange={setPreferencesData}
+                />
+              )}
             </motion.div>
           </AnimatePresence>
+
+          {submitError && (
+            <p className="mt-4 text-sm text-destructive text-center">
+              {submitError}
+            </p>
+          )}
         </CardContent>
+
         <CardFooter className="flex justify-between border-t p-6">
           <Button
             variant="ghost"
-            onClick={handleBack}
-            disabled={step === 1}
+            onClick={goBack}
+            disabled={stepIndex === 0 || isSubmitting}
           >
             Back
           </Button>
-          <Button onClick={handleNext}>
-            {step === 4 ? "Complete" : "Continue"}
-          </Button>
+          {/* Hide Continue on step 1 — navigation is driven by upload/skip actions */}
+          {currentStepId !== "upload" && (
+            <Button
+              onClick={handleContinue}
+              disabled={isContinueDisabled}
+            >
+              {isSubmitting
+                ? "Saving…"
+                : isLastStep
+                ? "Complete"
+                : "Continue"}
+            </Button>
+          )}
         </CardFooter>
       </Card>
     </div>
