@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Job } from "@/types";
 import { useAuthStore } from "@/store/auth.store";
 import { UserProfile } from "@/lib/api/auth";
