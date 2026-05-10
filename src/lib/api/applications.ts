@@ -15,19 +15,14 @@ export interface ApplicationPayload {
 
 export interface ApplicationResponse {
   id: string;
-  job_id: string | null;
-  job: JobListingResponse | null;
-  job_title?: string;
-  job_company?: string;
+  job_listing: string | null;
+  job_listing_detail: JobListingResponse | null;
   status: ApplicationStatus;
-  applied_date: string;
-  last_activity: string;
-  last_activity_description: string;
+  applied_at: string | null;
+  updated_at: string;
   notes: string;
-  resume_url: string | null;
-  cover_letter: string | null;
-  ai_resume: string | null;
-  ai_cover_letter: string | null;
+  resume: number | null;
+  cover_letter: number | null;
 }
 
 export interface PaginatedApplicationsResponse {
@@ -62,15 +57,14 @@ export interface TaskAccepted {
 
 export function mapApplication(data: ApplicationResponse): FrontendApplication {
   return {
-    id: data.id,
-    jobId: data.job_id || "",
-    // Fallback to manual title/company if the job doesn't exist in the DB
-    job: data.job 
-      ? mapJobListing(data.job) 
+    id: data.id.toString(),
+    jobId: data.job_listing?.toString() || "",
+    job: data.job_listing_detail 
+      ? mapJobListing(data.job_listing_detail) 
       : {
-          id: data.job_id || `manual-${data.id}`,
-          title: data.job_title || "Unknown Role",
-          company: data.job_company || "Unknown Company",
+          id: data.job_listing?.toString() || `manual-${data.id}`,
+          title: "Unknown Role",
+          company: "Unknown Company",
           location: "Unknown",
           type: "Full-time",
           salary: "Not specified",
@@ -78,20 +72,20 @@ export function mapApplication(data: ApplicationResponse): FrontendApplication {
           requirements: [],
           skills: [],
           matchScore: 0,
-          postedDate: data.applied_date || "Just now",
+          postedDate: data.applied_at || "Just now",
           industry: "Various",
           experienceLevel: "Varies",
           remote: false,
         },
     status: data.status,
-    appliedDate: data.applied_date,
-    lastActivity: data.last_activity,
-    lastActivityDescription: data.last_activity_description,
+    appliedDate: data.applied_at || "",
+    lastActivity: data.updated_at || "",
+    lastActivityDescription: "",
     notes: data.notes || "",
-    resumeUrl: data.resume_url || undefined,
-    coverLetter: data.cover_letter || undefined,
-    aiResume: data.ai_resume || undefined,
-    aiCoverLetter: data.ai_cover_letter || undefined,
+    resumeUrl: undefined,
+    coverLetter: undefined,
+    aiResume: undefined,
+    aiCoverLetter: undefined,
   };
 }
 
@@ -119,22 +113,40 @@ export const applicationsApi = {
       .then((r) => mapApplication(r.data)),
 
   /** POST /api/jobs/applications/ */
-  create: (data: ApplicationPayload) =>
-    apiClient
-      .post<ApplicationResponse>("/api/jobs/applications/", data)
-      .then((r) => mapApplication(r.data)),
+  create: (data: ApplicationPayload) => {
+    const payload: any = { ...data };
+    if (payload.job_id) {
+      payload.job_listing = payload.job_id;
+      delete payload.job_id;
+    }
+    return apiClient
+      .post<ApplicationResponse>("/api/jobs/applications/", payload)
+      .then((r) => mapApplication(r.data));
+  },
 
   /** PUT /api/jobs/applications/<id>/ */
-  update: (id: string, data: ApplicationPayload) =>
-    apiClient
-      .put<ApplicationResponse>(`/api/jobs/applications/${id}/`, data)
-      .then((r) => mapApplication(r.data)),
+  update: (id: string, data: ApplicationPayload) => {
+    const payload: any = { ...data };
+    if (payload.job_id) {
+      payload.job_listing = payload.job_id;
+      delete payload.job_id;
+    }
+    return apiClient
+      .put<ApplicationResponse>(`/api/jobs/applications/${id}/`, payload)
+      .then((r) => mapApplication(r.data));
+  },
 
   /** PATCH /api/jobs/applications/<id>/ */
-  patch: (id: string, data: Partial<ApplicationPayload>) =>
-    apiClient
-      .patch<ApplicationResponse>(`/api/jobs/applications/${id}/`, data)
-      .then((r) => mapApplication(r.data)),
+  patch: (id: string, data: Partial<ApplicationPayload>) => {
+    const payload: any = { ...data };
+    if (payload.job_id) {
+      payload.job_listing = payload.job_id;
+      delete payload.job_id;
+    }
+    return apiClient
+      .patch<ApplicationResponse>(`/api/jobs/applications/${id}/`, payload)
+      .then((r) => mapApplication(r.data));
+  },
 
   /** DELETE /api/jobs/applications/<id>/ */
   delete: (id: string) =>
