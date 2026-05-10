@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Job } from "@/types";
+import { useAuthStore } from "@/store/auth.store";
 
 interface FormAutofillPreviewProps {
   job: Job;
@@ -33,46 +34,48 @@ interface FieldData {
 }
 
 export function FormAutofillPreview({ job }: FormAutofillPreviewProps) {
+  const user = useAuthStore((state) => state.user);
+
   const initialFields: FieldData[] = [
     {
       id: "name",
       label: "Full Name",
-      value: "Alex Johnson",
+      value: user?.full_name || "Full Name",
       icon: <User className="h-4 w-4" />,
       source: "profile",
     },
     {
       id: "email",
       label: "Email Address",
-      value: "alex@pathfind.ai",
+      value: user?.email || "Email",
       icon: <Mail className="h-4 w-4" />,
       source: "profile",
     },
     {
       id: "phone",
       label: "Phone Number",
-      value: "+1 (555) 123-4567",
+      value: user?.profile?.phone || "+1 (555) 000-0000",
       icon: <Phone className="h-4 w-4" />,
       source: "profile",
     },
     {
       id: "location",
       label: "Location",
-      value: job.location === "Remote" ? "San Francisco, CA (Open to remote)" : job.location,
+      value: job.location === "Remote" ? `${user?.profile?.location || "San Francisco, CA"} (Open to remote)` : job.location,
       icon: <MapPin className="h-4 w-4" />,
       source: job.location === "Remote" ? "ai" : "profile",
     },
     {
       id: "website",
       label: "Portfolio / Website",
-      value: "https://alexjohnson.dev",
+      value: user?.profile?.portfolio_url || "https://example.com",
       icon: <Globe className="h-4 w-4" />,
       source: "profile",
     },
     {
       id: "linkedin",
       label: "LinkedIn Profile",
-      value: "https://linkedin.com/in/alexjohnson",
+      value: user?.profile?.linkedin_url || "https://linkedin.com/in/",
       icon: <Link className="h-4 w-4" />,
       source: "profile",
     },

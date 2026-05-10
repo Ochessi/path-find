@@ -16,7 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Job } from "@/types";
+import { useAuthStore } from "@/store/auth.store";
+import { UserProfile } from "@/lib/api/auth";
 
 interface AiResumeEditorProps {
   job: Job;
@@ -24,58 +27,88 @@ interface AiResumeEditorProps {
 }
 
 // Simulated AI-tailored resume sections
-function generateResumeSections(job: Job) {
-  return {
-    summary: `Highly motivated ${job.experienceLevel}-level professional with deep expertise in ${job.skills.slice(0, 3).join(", ")}. Proven track record of building scalable products at top-tier technology companies with a focus on ${job.industry.toLowerCase()} innovation. Passionate about leveraging technology to solve complex problems and drive business outcomes.`,
-    experience: [
-      {
-        title: "Senior Software Engineer",
-        company: "TechCorp",
-        period: "2022 — Present",
-        bullets: [
-          `Led development of customer-facing applications using ${job.skills[0]} and ${job.skills[1]}, resulting in a 40% increase in user engagement`,
-          `Architected and deployed scalable microservices handling 10M+ daily requests with 99.99% uptime`,
-          `Mentored a team of 5 junior developers, establishing code review processes that reduced bugs by 35%`,
-          `Collaborated with product and design teams to ship 12 major features in the ${job.industry} space`,
-        ],
-        isAiModified: true,
-      },
-      {
-        title: "Software Engineer",
-        company: "StartupXYZ",
-        period: "2020 — 2022",
-        bullets: [
-          `Built and maintained full-stack applications using ${job.skills.slice(0, 2).join(" and ")}`,
-          `Implemented CI/CD pipelines that reduced deployment time from 2 hours to 15 minutes`,
-          `Designed RESTful APIs consumed by mobile and web clients, serving 50K+ daily active users`,
-        ],
-        isAiModified: true,
-      },
-      {
-        title: "Junior Developer",
-        company: "Digital Agency",
-        period: "2018 — 2020",
-        bullets: [
-          "Developed responsive web applications for enterprise clients across multiple industries",
-          "Participated in agile sprints, consistently delivering features ahead of schedule",
-        ],
-        isAiModified: false,
-      },
-    ],
-    education: {
-      degree: "B.S. Computer Science",
-      school: "University of California, Berkeley",
-      year: "2018",
+function generateResumeSections(job: Job, user: UserProfile | null) {
+  const defaultExperience = [
+    {
+      title: "Senior Software Engineer",
+      company: "TechCorp",
+      period: "2022 — Present",
+      bullets: [
+        `Led development of customer-facing applications using ${job.skills[0] || 'modern tech'} and ${job.skills[1] || 'tools'}, resulting in a 40% increase in user engagement`,
+        `Architected and deployed scalable microservices handling 10M+ daily requests with 99.99% uptime`,
+        `Mentored a team of 5 junior developers, establishing code review processes that reduced bugs by 35%`,
+        `Collaborated with product and design teams to ship 12 major features in the ${job.industry} space`,
+      ],
+      isAiModified: true,
     },
-    skills: job.skills,
+    {
+      title: "Software Engineer",
+      company: "StartupXYZ",
+      period: "2020 — 2022",
+      bullets: [
+        `Built and maintained full-stack applications using ${job.skills.slice(0, 2).join(" and ")}`,
+        `Implemented CI/CD pipelines that reduced deployment time from 2 hours to 15 minutes`,
+        `Designed RESTful APIs consumed by mobile and web clients, serving 50K+ daily active users`,
+      ],
+      isAiModified: true,
+    },
+    {
+      title: "Junior Developer",
+      company: "Digital Agency",
+      period: "2018 — 2020",
+      bullets: [
+        "Developed responsive web applications for enterprise clients across multiple industries",
+        "Participated in agile sprints, consistently delivering features ahead of schedule",
+      ],
+      isAiModified: false,
+    },
+  ];
+
+  const defaultEducation = {
+    degree: "B.S. Computer Science",
+    school: "University of California, Berkeley",
+    year: "2018",
+  };
+
+  const experience = user?.experience && user.experience.length > 0
+    ? user.experience.map((exp, idx) => ({
+        title: exp.title,
+        company: exp.company,
+        period: `${new Date(exp.start_date).getFullYear()} — ${exp.current || !exp.end_date ? 'Present' : new Date(exp.end_date).getFullYear()}`,
+        bullets: exp.description ? exp.description.split('\n').filter(Boolean) : [`Contributed to ${exp.company} as a ${exp.title}`],
+        isAiModified: idx === 0,
+      }))
+    : defaultExperience;
+
+  if (experience.length > 0 && experience[0].isAiModified && user?.experience && user.experience.length > 0) {
+    experience[0].bullets = [
+      `Leveraged ${job.skills[0] || 'modern tech'} and ${job.skills[1] || 'industry tools'} to accelerate project delivery`,
+      ...experience[0].bullets
+    ];
+  }
+
+  const education = user?.education && user.education.length > 0
+    ? {
+        degree: user.education[0].degree,
+        school: user.education[0].institution,
+        year: new Date(user.education[0].end_date || user.education[0].start_date).getFullYear().toString() || "Unknown",
+      }
+    : defaultEducation;
+
+  return {
+    summary: user?.summary || user?.profile?.bio || `Highly motivated ${job.experienceLevel}-level professional with deep expertise in ${job.skills.slice(0, 3).join(", ")}. Proven track record of building scalable products at top-tier technology companies with a focus on ${job.industry.toLowerCase()} innovation. Passionate about leveraging technology to solve complex problems and drive business outcomes.`,
+    experience,
+    education,
+    skills: user?.skills && user.skills.length > 0 ? user.skills : job.skills,
   };
 }
 
 export function AiResumeEditor({ job, isGenerating }: AiResumeEditorProps) {
+  const user = useAuthStore((state) => state.user);
   const [isEditing, setIsEditing] = React.useState(false);
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
-  const resume = React.useMemo(() => generateResumeSections(job), [job]);
+  const resume = React.useMemo(() => generateResumeSections(job, user), [job, user]);
   const [editedSummary, setEditedSummary] = React.useState(resume.summary);
 
   const handleRegenerate = async () => {

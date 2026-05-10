@@ -25,33 +25,48 @@ export default function ProfilePage() {
   const { user } = useAuthStore();
   const [isEditing, setIsEditing] = React.useState(false);
   const [profileData, setProfileData] = React.useState({
-    name: user?.full_name || "Alex Johnson",
-    email: user?.email || "alex@pathfind.ai",
-    location: "San Francisco, CA",
-    role: "Senior Software Engineer",
-    summary:
-      "Passionate software engineer with 5+ years of experience in building scalable web applications. Strong focus on React, Node.js, and cloud architecture.",
-    skills: ["React", "TypeScript", "Node.js", "AWS", "GraphQL", "Tailwind CSS"],
-    experience: [
-      {
-        title: "Software Engineer",
-        company: "Tech Solutions Inc.",
-        period: "2021 - Present",
-      },
-      {
-        title: "Frontend Developer",
-        company: "Creative Digital",
-        period: "2018 - 2021",
-      },
-    ],
-    education: [
-      {
-        degree: "B.S. Computer Science",
-        school: "University of Technology",
-        year: "2018",
-      },
-    ],
+    name: "",
+    email: "",
+    location: "",
+    role: "",
+    summary: "",
+    skills: [] as string[],
+    experience: [] as { title: string; company: string; period: string }[],
+    education: [] as { degree: string; school: string; year: string }[],
   });
+
+  React.useEffect(() => {
+    if (user) {
+      setProfileData({
+        name: user.full_name || "",
+        email: user.email || "",
+        location: user.profile?.location || user.location || "",
+        role: user.profile?.headline || user.headline || "",
+        summary: user.summary || user.profile?.bio || "",
+        skills: user.skills || [],
+        experience:
+          user.experience?.map((exp) => ({
+            title: exp.title,
+            company: exp.company,
+            period: `${new Date(exp.start_date).getFullYear()} - ${
+              exp.current || !exp.end_date
+                ? "Present"
+                : new Date(exp.end_date).getFullYear()
+            }`,
+          })) || [],
+        education:
+          user.education?.map((edu) => ({
+            degree: edu.degree,
+            school: edu.institution,
+            year: edu.end_date
+              ? new Date(edu.end_date).getFullYear().toString()
+              : edu.start_date
+              ? new Date(edu.start_date).getFullYear().toString()
+              : "",
+          })) || [],
+      });
+    }
+  }, [user]);
 
   const handleSave = () => {
     // Simulate save
@@ -80,20 +95,22 @@ export default function ProfilePage() {
                  {profileData.name.charAt(0)}
                </div>
             </div>
-            <h2 className="text-xl font-bold mt-4">{profileData.name}</h2>
-            <p className="text-muted-foreground text-sm">{profileData.role}</p>
+            <h2 className="text-xl font-bold mt-4">{profileData.name || "Add Your Name"}</h2>
+            <p className="text-muted-foreground text-sm">{profileData.role || "Add Your Headline/Role"}</p>
           </div>
 
           <div className="space-y-4">
              <div>
                <div className="flex justify-between text-sm mb-2">
                  <span className="font-medium">Profile Completeness</span>
-                 <span className="text-emerald-600 font-semibold">85%</span>
+                 <span className="text-emerald-600 font-semibold">{user?.completeness || 0}%</span>
                </div>
-               <Progress value={85} className="h-2" />
-               <p className="text-xs text-muted-foreground mt-2">
-                 Add 2 more skills to reach 100%
-               </p>
+               <Progress value={user?.completeness || 0} className="h-2" />
+               {(user?.completeness || 0) < 100 && (
+                 <p className="text-xs text-muted-foreground mt-2">
+                   Complete your profile to stand out to employers
+                 </p>
+               )}
              </div>
           </div>
 
@@ -104,15 +121,15 @@ export default function ProfilePage() {
               <div className="space-y-3">
                  <div className="flex items-center gap-3 text-sm">
                     <User className="h-4 w-4 text-muted-foreground" />
-                    <span>{profileData.name}</span>
+                    <span className={profileData.name ? "" : "text-muted-foreground"}>{profileData.name || "Add Name"}</span>
                  </div>
                  <div className="flex items-center gap-3 text-sm">
                     <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span>{profileData.email}</span>
+                    <span className={profileData.email ? "" : "text-muted-foreground"}>{profileData.email || "Add Email"}</span>
                  </div>
                  <div className="flex items-center gap-3 text-sm">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{profileData.location}</span>
+                    <span className={profileData.location ? "" : "text-muted-foreground"}>{profileData.location || "Add Location"}</span>
                  </div>
               </div>
           </div>
@@ -134,17 +151,18 @@ export default function ProfilePage() {
            </div>
 
            <div className="space-y-6">
-              <div className="space-y-3">
+               <div className="space-y-3">
                  <Label>Professional Summary</Label>
                  {isEditing ? (
                     <Textarea 
                       value={profileData.summary}
                       onChange={(e) => setProfileData({...profileData, summary: e.target.value})}
                       rows={4}
+                      placeholder="Write a brief professional summary..."
                     />
                  ) : (
-                    <p className="text-sm leading-relaxed p-4 bg-muted/30 rounded-xl border border-muted">
-                      {profileData.summary}
+                    <p className={`text-sm leading-relaxed p-4 rounded-xl border ${profileData.summary ? 'bg-muted/30 border-muted' : 'border-dashed border-muted-foreground/30 text-muted-foreground'}`}>
+                      {profileData.summary || "You haven't added a professional summary yet."}
                     </p>
                  )}
               </div>
@@ -162,7 +180,7 @@ export default function ProfilePage() {
                  </div>
                  
                  <div className="space-y-3">
-                    {profileData.experience.map((exp, i) => (
+                    {profileData.experience.length > 0 ? profileData.experience.map((exp, i) => (
                        <div key={i} className="p-4 rounded-xl border flex justify-between items-start">
                           <div>
                             <h4 className="font-semibold text-sm">{exp.title}</h4>
@@ -174,7 +192,11 @@ export default function ProfilePage() {
                              </Button>
                           )}
                        </div>
-                    ))}
+                    )) : (
+                      <div className="p-6 rounded-xl border border-dashed border-muted-foreground/30 flex items-center justify-center">
+                         <span className="text-sm text-muted-foreground">No experience listed</span>
+                      </div>
+                    )}
                  </div>
               </div>
 
@@ -191,7 +213,7 @@ export default function ProfilePage() {
                  </div>
                  
                  <div className="space-y-3">
-                    {profileData.education.map((edu, i) => (
+                    {profileData.education.length > 0 ? profileData.education.map((edu, i) => (
                        <div key={i} className="p-4 rounded-xl border flex justify-between items-start">
                           <div>
                             <h4 className="font-semibold text-sm">{edu.degree}</h4>
@@ -203,7 +225,11 @@ export default function ProfilePage() {
                              </Button>
                           )}
                        </div>
-                    ))}
+                    )) : (
+                      <div className="p-6 rounded-xl border border-dashed border-muted-foreground/30 flex items-center justify-center">
+                         <span className="text-sm text-muted-foreground">No education listed</span>
+                      </div>
+                    )}
                  </div>
               </div>
 
@@ -217,11 +243,13 @@ export default function ProfilePage() {
                     )}
                  </div>
                  <div className="flex flex-wrap gap-2">
-                    {profileData.skills.map((skill, i) => (
+                    {profileData.skills.length > 0 ? profileData.skills.map((skill, i) => (
                        <Badge key={i} variant={isEditing ? "default" : "secondary"} className="rounded-lg px-3 py-1">
                           {skill}
                        </Badge>
-                    ))}
+                    )) : (
+                      <span className="text-sm text-muted-foreground">No skills added yet</span>
+                    )}
                  </div>
               </div>
            </div>

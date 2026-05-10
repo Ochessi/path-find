@@ -20,6 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Job } from "@/types";
+import { useAuthStore } from "@/store/auth.store";
 
 interface AiCoverLetterEditorProps {
   job: Job;
@@ -46,7 +47,7 @@ const toneConfig: Record<Tone, { label: string; icon: React.ReactNode; descripti
   },
 };
 
-function generateCoverLetter(job: Job, tone: Tone): string[] {
+function generateCoverLetter(job: Job, tone: Tone, name: string): string[] {
   const greetings: Record<Tone, string> = {
     professional: `Dear Hiring Manager at ${job.company},`,
     friendly: `Hello ${job.company} team!`,
@@ -71,17 +72,20 @@ function generateCoverLetter(job: Job, tone: Tone): string[] {
     confident: `I'm ready to bring my expertise to ${job.company} and deliver results from day one. Let's connect to discuss how I can drive your team's next major initiative forward. I look forward to speaking with you soon.`,
   };
 
-  return [greetings[tone], intros[tone], bodies[tone], closings[tone], "Best regards,\nAlex Johnson"];
+  return [greetings[tone], intros[tone], bodies[tone], closings[tone], `Best regards,\n${name}`];
 }
 
 export function AiCoverLetterEditor({ job, isGenerating }: AiCoverLetterEditorProps) {
+  const user = useAuthStore((state) => state.user);
+  const userName = user?.full_name || "Applicant";
+
   const [tone, setTone] = React.useState<Tone>("professional");
   const [isEditing, setIsEditing] = React.useState(false);
   const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const [editingParagraph, setEditingParagraph] = React.useState<number | null>(null);
 
-  const paragraphs = React.useMemo(() => generateCoverLetter(job, tone), [job, tone]);
+  const paragraphs = React.useMemo(() => generateCoverLetter(job, tone, userName), [job, tone, userName]);
   const [editedParagraphs, setEditedParagraphs] = React.useState(paragraphs);
 
   React.useEffect(() => {

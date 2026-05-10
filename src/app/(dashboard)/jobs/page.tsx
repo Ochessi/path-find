@@ -19,12 +19,20 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 
 import { useJobStore } from "@/store/job.store";
+import { useApplicationStore } from "@/store/application.store";
 import { Job } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -70,6 +78,21 @@ function matchTier(score: number) {
 }
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+function stripFormatting(text: string) {
+  if (!text) return "";
+  let cleaned = text.replace(/<[^>]*>?/gm, ' '); // Remove HTML tags
+  cleaned = cleaned.replace(/(\*\*|__)(.*?)\1/g, '$2'); // Remove bold
+  cleaned = cleaned.replace(/(\*|_)(.*?)\1/g, '$2'); // Remove italic
+  cleaned = cleaned.replace(/#{1,6}\s?/g, ''); // Remove headers
+  cleaned = cleaned.replace(/\[(.*?)\]\(.*?\)/g, '$1'); // Remove links
+  cleaned = cleaned.replace(/`{1,3}(.*?)`{1,3}/g, '$1'); // Remove code
+  cleaned = cleaned.replace(/\n+/g, ' '); // Replace newlines with spaces
+  return cleaned.trim();
+}
+
+// ---------------------------------------------------------------------------
 // Job Card (grid variant)
 // ---------------------------------------------------------------------------
 function JobGridCard({
@@ -77,11 +100,13 @@ function JobGridCard({
   saved,
   onSave,
   onApply,
+  onClick,
 }: {
   job: Job;
   saved: boolean;
   onSave: () => void;
   onApply: () => void;
+  onClick: () => void;
 }) {
   const tier = matchTier(job.matchScore);
 
@@ -91,7 +116,8 @@ function JobGridCard({
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
-      className="group relative flex flex-col bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/40 hover:shadow-md transition-all duration-200"
+      onClick={onClick}
+      className="group relative flex flex-col bg-card border border-border/60 rounded-2xl p-5 hover:border-primary/40 hover:shadow-md transition-all duration-200 cursor-pointer"
     >
       {/* Top row */}
       <div className="flex items-start justify-between gap-3 mb-4">
@@ -140,7 +166,7 @@ function JobGridCard({
 
       {/* Description */}
       <p className="text-xs text-muted-foreground line-clamp-2 mb-4 leading-relaxed flex-1">
-        {job.description}
+        {stripFormatting(job.description)}
       </p>
 
       {/* Skills */}
@@ -176,7 +202,7 @@ function JobGridCard({
 
         <Button
           size="sm"
-          onClick={onApply}
+          onClick={(e) => { e.stopPropagation(); onApply(); }}
           className="h-7 text-xs px-3 rounded-lg bg-primary hover:bg-primary/90 text-primary-foreground gap-1"
         >
           Apply <ChevronRight className="h-3 w-3" />
@@ -288,7 +314,10 @@ function FilterSidebar({
           max={500000}
           step={10000}
           value={salaryRange}
-          onValueChange={(v) => setSalaryRange(v as [number, number])}
+          onValueChange={(v) => {
+            const arr = Array.isArray(v) ? v : [v as number, 500000];
+            setSalaryRange([arr[0] ?? 0, arr[1] ?? 500000]);
+          }}
           className="mt-2"
         />
         <div className="flex justify-between text-xs text-muted-foreground">
@@ -376,6 +405,9 @@ function FilterSidebar({
 export default function JobsPage() {
   const router = useRouter();
   const { jobs, fetchJobs, isLoading, error } = useJobStore();
+  const { addApplication } = useApplicationStore();
+
+  const [selectedJob, setSelectedJob] = React.useState<Job | null>(null);
 
   // Local filter state (independent from dashboard store)
   const [keyword, setKeyword] = React.useState("");
@@ -435,8 +467,18 @@ export default function JobsPage() {
 
   // Local saved state for UI mock since backend bookmarks aren't fully specified
   const [savedJobs, setSavedJobs] = React.useState<string[]>([]);
-  const toggleSaveJob = (id: string) => {
-    setSavedJobs(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  const toggleSaveJob = async (job: Job) => {
+    const isSaved = savedJobs.includes(job.id);
+    if (isSaved) {
+      setSavedJobs(prev => prev.filter(x => x !== job.id));
+    } else {
+      setSavedJobs(prev => [...prev, job.id]);
+      try {
+        await addApplication({ job_id: job.id, status: "saved" });
+      } catch (err) {
+        console.error("Failed to save job:", err);
+      }
+    }
   };
 
   return (
@@ -530,8 +572,9 @@ export default function JobsPage() {
                     key={job.id}
                     job={job}
                     saved={savedJobs.includes(job.id)}
-                    onSave={() => toggleSaveJob(job.id)}
+                    onSave={() => toggleSaveJob(job)}
                     onApply={() => router.push(`/application/${job.id}`)}
+                    onClick={() => setSelectedJob(job)}
                   />
                 ))}
               </div>
@@ -539,6 +582,62 @@ export default function JobsPage() {
           )}
         </div>
       </div>
+
+      {/* Job Details Dialog */}
+      <Dialog open={!!selectedJob} onOpenChange={(open) => !open && setSelectedJob(null)}>
+        <DialogContent className="sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
+          {selectedJob && (
+            <>
+              <DialogHeader>
+                <div className="flex items-start gap-4 mb-2">
+                  <div className="h-14 w-14 shrink-0 rounded-xl bg-muted border border-border/60 flex items-center justify-center font-bold text-2xl text-muted-foreground">
+                    {selectedJob.companyLogo ?? selectedJob.company[0]}
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl">{selectedJob.title}</DialogTitle>
+                    <DialogDescription className="text-base mt-1">
+                      {selectedJob.company} • {selectedJob.location}
+                    </DialogDescription>
+                  </div>
+                </div>
+              </DialogHeader>
+              
+              <div className="flex flex-wrap gap-2 py-2">
+                <Badge variant="secondary" className="font-normal"><Briefcase className="h-3 w-3 mr-1" /> {selectedJob.type}</Badge>
+                <Badge variant="secondary" className="font-normal"><DollarSign className="h-3 w-3 mr-1" /> {selectedJob.salary || "Not specified"}</Badge>
+                {selectedJob.remote && <Badge variant="secondary" className="text-emerald-600 bg-emerald-500/10 font-normal"><Wifi className="h-3 w-3 mr-1" /> Remote</Badge>}
+              </div>
+
+              <Separator className="my-2" />
+
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-semibold mb-2">Description</h4>
+                  <div className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                    {stripFormatting(selectedJob.description)}
+                  </div>
+                </div>
+                
+                {selectedJob.requirements && selectedJob.requirements.length > 0 && (
+                  <div>
+                    <h4 className="font-semibold mb-2">Requirements</h4>
+                    <ul className="list-disc pl-5 space-y-1 text-sm text-muted-foreground">
+                      {selectedJob.requirements.map((req, i) => <li key={i}>{req}</li>)}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+                <Button variant="outline" onClick={() => setSelectedJob(null)}>Close</Button>
+                <Button onClick={() => router.push(`/application/${selectedJob.id}`)} className="bg-primary text-primary-foreground">
+                  Apply Now <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
