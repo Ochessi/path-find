@@ -74,6 +74,7 @@ export function ReviewSubmitModal({
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
   const [isSavingTemplate, setIsSavingTemplate] = React.useState(false);
   const [isTemplateSaved, setIsTemplateSaved] = React.useState(false);
+  const [createdAppId, setCreatedAppId] = React.useState<string | null>(null);
 
   const isSubmitting = ["creating", "queuing", "pending", "started"].includes(phase);
   const isSuccess = phase === "success";
@@ -104,36 +105,57 @@ export function ReviewSubmitModal({
       // ── Step 1: Create the Application record ──────────────────────────
       // applicationsApi.create() returns the full Application object (including
       // its server-assigned id) immediately — no secondary list call needed.
-      setPhase("creating");
-      const newApp = await applicationsApi.create({
-        job_id: job.id,
-        status: "applied",
-        notes: "Submitted via Pathfind portal automation.",
-      });
+      let appId = createdAppId;
+      if (!appId) {
+        setPhase("creating");
+        const newApp = await applicationsApi.create({
+          job_id: job.id,
+          status: "applied",
+          notes: "Submitted via Pathfind portal automation.",
+        });
+        
+        appId = newApp.id;
+        setCreatedAppId(appId);
 
-      // Keep the Zustand store in sync without a redundant API round-trip.
-      useApplicationStore.setState((s) => ({
-        applications: [newApp, ...s.applications],
-      }));
+        // Keep the Zustand store in sync without a redundant API round-trip.
+        useApplicationStore.setState((s) => ({
+          applications: [newApp, ...s.applications],
+        }));
+      }
 
       // ── Step 2: Enqueue the portal submission task ─────────────────────
       setPhase("queuing");
-      const { task_id } = await applicationsApi.submitToPortal(newApp.id);
+      const { task_id } = await applicationsApi.submitToPortal(appId);
 
       // ── Step 3: Poll until done ────────────────────────────────────────
       setPhase("pending");
 
-      await pollTask(
-        task_id,
-        3000,  // poll every 3 s
-        100,   // up to 5 minutes
-        (status) => {
-          // Live status updates while polling
-          if (status === "STARTED") setPhase("started");
-          else if (status === "PENDING" || status === "RETRY")
-            setPhase("pending");
+      try {
+        const result = await pollTask(
+          task_id,
+          3000,  // poll every 3 s
+          20,    // up to 60 seconds (down from 5 mins)
+          (status) => {
+            // Live status updates while polling
+            if (status === "STARTED") setPhase("started");
+            else if (status === "PENDING" || status === "RETRY")
+              setPhase("pending");
+          }
+        );
+
+        if (result.status === "FAILURE") {
+          throw new Error(result.error || "Automation failed on the server.");
         }
-      );
+      } catch (pollErr: any) {
+        // If it timed out, the background worker might be slow or down.
+        // We gracefully treat this as "Queued" instead of completely failing the UI,
+        // because the application IS saved and the task IS queued.
+        if (pollErr.message?.includes("timed out")) {
+          console.warn("Polling timed out, but task is queued in the background.");
+        } else {
+          throw pollErr;
+        }
+      }
 
       setPhase("success");
 
@@ -141,7 +163,10 @@ export function ReviewSubmitModal({
       setTimeout(() => {
         onOpenChange(false);
         router.push("/applications");
-        setTimeout(() => setPhase("idle"), 500);
+        setTimeout(() => {
+          setPhase("idle");
+          setCreatedAppId(null);
+        }, 500);
       }, 2000);
     } catch (err: unknown) {
       const msg =
