@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>()(
       register: async (name: string, email: string, password: string) => {
         set({ isLoading: true, error: null });
         try {
-          const { access, refresh, user } = await authApi.register({ name, email, password });
+          const { access, refresh, user } = await authApi.register({ full_name: name, email, password });
           saveTokens(access, refresh);
           set({ user, isAuthenticated: true, isLoading: false });
         } catch (err: unknown) {

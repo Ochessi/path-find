@@ -25,7 +25,7 @@ export default function ProfilePage() {
   const { user } = useAuthStore();
   const [isEditing, setIsEditing] = React.useState(false);
   const [profileData, setProfileData] = React.useState({
-    name: user?.name || "Alex Johnson",
+    name: user?.full_name || "Alex Johnson",
     email: user?.email || "alex@pathfind.ai",
     location: "San Francisco, CA",
     role: "Senior Software Engineer",

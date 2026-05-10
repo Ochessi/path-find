@@ -53,7 +53,7 @@ export default function SettingsPage() {
             <div className="grid gap-4 max-w-xl">
               <div className="space-y-2">
                 <Label htmlFor="name">Display Name</Label>
-                <Input id="name" defaultValue={user?.name} className="max-w-md" />
+                <Input id="name" defaultValue={user?.full_name} className="max-w-md" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>

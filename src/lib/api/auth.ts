@@ -8,7 +8,8 @@ export interface LoginPayload {
 }
 
 export interface RegisterPayload {
-  name: string;
+  /** Sent as `full_name` to match the backend RegisterSerializer */
+  full_name: string;
   email: string;
   password: string;
 }
@@ -20,9 +21,11 @@ export interface TokenPair {
 
 export interface UserProfile {
   id: string;
-  name: string;
+  /** Maps to `full_name` on the backend */
+  full_name: string;
   email: string;
-  avatar: string | null;
+  /** Maps to `avatar_url` on the backend */
+  avatar_url: string | null;
   onboarding_complete: boolean;
   headline?: string;
   summary?: string;
@@ -34,6 +37,20 @@ export interface UserProfile {
   experience?: Experience[];
   education?: Education[];
   preferences?: JobPreferences;
+  /** Nested profile object from backend */
+  profile?: {
+    id: string;
+    headline: string;
+    location: string;
+    phone: string;
+    linkedin_url: string;
+    portfolio_url: string;
+    bio: string;
+    experience: unknown[];
+    education: unknown[];
+    skills: unknown[];
+    job_preferences: Record<string, unknown>;
+  } | null;
   completeness?: number;
 }
 

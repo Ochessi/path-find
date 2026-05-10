@@ -28,9 +28,16 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema),
   });
 
+  const [serverError, setServerError] = React.useState<string | null>(null);
+
   const onSubmit = async (data: FormData) => {
-    await login(data.email, data.password);
-    router.push("/dashboard");
+    setServerError(null);
+    try {
+      await login(data.email, data.password);
+      router.push("/dashboard");
+    } catch {
+      setServerError("Invalid email or password. Please try again.");
+    }
   };
 
   return (
@@ -67,7 +74,7 @@ export default function LoginPage() {
             <div className="flex items-center justify-between">
               <Label htmlFor="password">Password</Label>
               <Link
-                href="/forgot-password"
+                href="#"
                 className="text-sm font-medium text-primary hover:underline"
               >
                 Forgot password?
@@ -86,6 +93,11 @@ export default function LoginPage() {
             )}
           </div>
           
+          {serverError && (
+            <p className="text-sm font-medium text-destructive text-center">
+              {serverError}
+            </p>
+          )}
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign In

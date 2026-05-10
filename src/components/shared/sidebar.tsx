@@ -71,11 +71,11 @@ export function Sidebar() {
       <div className="p-4 border-t">
         <div className="flex items-center gap-3 rounded-lg px-3 py-2 transition-all hover:bg-muted">
           <Avatar className="h-9 w-9">
-            <AvatarImage src={user?.avatar ?? undefined} alt={user?.name} />
-            <AvatarFallback>{user?.name?.[0]}</AvatarFallback>
+            <AvatarImage src={user?.avatar_url ?? undefined} alt={user?.full_name} />
+            <AvatarFallback>{user?.full_name?.[0]}</AvatarFallback>
           </Avatar>
           <div className="flex flex-col truncate">
-            <span className="text-sm font-medium leading-none">{user?.name}</span>
+            <span className="text-sm font-medium leading-none">{user?.full_name}</span>
             <span className="text-xs text-muted-foreground truncate">{user?.email}</span>
           </div>
         </div>

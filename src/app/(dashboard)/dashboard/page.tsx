@@ -413,8 +413,8 @@ function QuickStatStrip() {
 export default function OverviewPage() {
   const { user } = useAuthStore();
   const { fetchApplications } = useApplicationStore();
-  const firstName = (user?.name && typeof user.name === "string")
-    ? user.name.split(" ")[0] || "there"
+  const firstName = (user?.full_name && typeof user.full_name === "string")
+    ? user.full_name.split(" ")[0] || "there"
     : "there";
 
   React.useEffect(() => {
