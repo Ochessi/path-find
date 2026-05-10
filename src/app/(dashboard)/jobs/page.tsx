@@ -145,7 +145,7 @@ function JobGridCard({
 
       {/* Skills */}
       <div className="flex flex-wrap gap-1.5 mb-4">
-        {job.skills.slice(0, 4).map((skill) => (
+        {(job.skills ?? []).slice(0, 4).map((skill) => (
           <Badge
             key={skill}
             variant="secondary"
@@ -154,9 +154,9 @@ function JobGridCard({
             {skill}
           </Badge>
         ))}
-        {job.skills.length > 4 && (
+        {(job.skills ?? []).length > 4 && (
           <Badge variant="outline" className="text-[11px] px-2 py-0.5 rounded-lg text-muted-foreground">
-            +{job.skills.length - 4}
+            +{(job.skills ?? []).length - 4}
           </Badge>
         )}
       </div>
