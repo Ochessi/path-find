@@ -156,7 +156,7 @@ export default function OnboardingPage() {
       if (path === "manual") {
         // Persist full manual profile + preferences in one PATCH
         await authApi.patchMe({
-          name: manualData.name,
+          full_name: manualData.name,
           email: manualData.email,
           headline: manualData.role,
           summary: manualData.summary,
