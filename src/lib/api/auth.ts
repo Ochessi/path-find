@@ -33,10 +33,12 @@ export interface UserProfile {
   location?: string;
   website?: string;
   linkedin?: string;
+  github?: string;
   skills?: string[];
   experience?: Experience[];
   education?: Education[];
   preferences?: JobPreferences;
+  career_intelligence?: CareerIntelligence;
   /** Nested profile object from backend */
   profile?: {
     id: string;
@@ -44,12 +46,14 @@ export interface UserProfile {
     location: string;
     phone: string;
     linkedin_url: string;
+    github_url: string;
     portfolio_url: string;
     bio: string;
     experience: unknown[];
     education: unknown[];
     skills: unknown[];
     job_preferences: Record<string, unknown>;
+    career_intelligence: Record<string, unknown>;
   } | null;
   completeness?: number;
 }
@@ -81,6 +85,12 @@ export interface JobPreferences {
   salary_min?: number;
   salary_max?: number;
   remote?: boolean;
+}
+
+export interface CareerIntelligence {
+  years_experience?: number | null;
+  primary_domain?: string | null;
+  specializations?: string[];
 }
 
 export interface AuthResponse extends TokenPair {

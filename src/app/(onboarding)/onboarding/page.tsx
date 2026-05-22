@@ -16,87 +16,116 @@ import {
 import { Progress } from "@/components/ui/progress";
 
 import { ResumeUpload } from "@/components/onboarding/resume-upload";
-import { AIParsingPreview } from "@/components/onboarding/ai-parsing-preview";
-import { ProfileCompletion } from "@/components/onboarding/profile-completion";
 import { PreferencesSetup } from "@/components/onboarding/preferences-setup";
-import { ManualProfile, type ManualProfileData } from "@/components/onboarding/manual-profile";
+import { CoreProfileStep, type CoreProfileData } from "@/components/onboarding/core-profile-step";
+import {
+  CareerIntelligenceStep,
+  type CareerData,
+  type CareerIntelligence,
+} from "@/components/onboarding/career-intelligence-step";
+import {
+  SkillsEducationStep,
+  type SkillsEducationData,
+  type EducationEntry,
+} from "@/components/onboarding/skills-education-step";
 
-// ─── Step definitions ────────────────────────────────────────────────────────
-//
-// AI path  (resume uploaded): upload → ai-preview → profile-completion → preferences
-// Manual path (skip):         upload → manual-profile → preferences
-//
+// ─── Step IDs ────────────────────────────────────────────────────────────────
 type StepId =
   | "upload"
-  | "ai-preview"
-  | "profile-completion"
-  | "manual-profile"
+  | "core-profile"
+  | "career-intelligence"
+  | "skills-education"
   | "preferences";
 
-const AI_STEPS: StepId[] = ["upload", "ai-preview", "profile-completion", "preferences"];
-const MANUAL_STEPS: StepId[] = ["upload", "manual-profile", "preferences"];
+const STEPS: StepId[] = [
+  "upload",
+  "core-profile",
+  "career-intelligence",
+  "skills-education",
+  "preferences",
+];
 
-function stepMeta(stepId: StepId) {
+function stepMeta(stepId: StepId): { title: string; description: string } {
   switch (stepId) {
     case "upload":
       return {
         title: "Upload your resume",
-        description: "Start by uploading your current resume. We'll extract your details.",
+        description: "Start by uploading your current resume. We'll extract your details automatically.",
       };
-    case "ai-preview":
+    case "core-profile":
       return {
-        title: "AI parsing complete",
-        description: "Review what our AI extracted from your document.",
+        title: "Your core profile",
+        description: "Verify and edit the key details extracted from your resume.",
       };
-    case "profile-completion":
+    case "career-intelligence":
       return {
-        title: "Complete your profile",
-        description: "Fill in any gaps so we can match you perfectly.",
+        title: "Career intelligence",
+        description: "Tell us about your career focus — we use this to match you to the right jobs.",
       };
-    case "manual-profile":
+    case "skills-education":
       return {
-        title: "Build your profile",
-        description: "Tell us about yourself so we can find the best matches for you.",
+        title: "Skills & education",
+        description: "Review your skills and educational background.",
       };
     case "preferences":
       return {
-        title: "Set your preferences",
+        title: "Job preferences",
         description: "Tell us what you're looking for in your next role.",
       };
   }
 }
 
-// ─── Page ────────────────────────────────────────────────────────────────────
+// ─── Default state factories ──────────────────────────────────────────────────
+
+function defaultCoreProfile(user: any): CoreProfileData {
+  return {
+    full_name: user?.full_name ?? "",
+    email: user?.email ?? "",
+    phone: user?.profile?.phone ?? "",
+    headline: user?.profile?.headline ?? "",
+    location: user?.profile?.location ?? "",
+    linkedin_url: user?.profile?.linkedin_url ?? "",
+    portfolio_url: user?.profile?.portfolio_url ?? "",
+  };
+}
+
+const defaultCareerIntelligence: CareerIntelligence = {
+  years_experience: null,
+  primary_domain: null,
+  specializations: [],
+};
+
+const defaultCareerData: CareerData = {
+  bio: "",
+  career_intelligence: defaultCareerIntelligence,
+  job_titles: [],
+};
+
+const defaultSkillsEducation: SkillsEducationData = {
+  hard_skills: [],
+  soft_skills: [],
+  education: [],
+};
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { setUser } = useAuthStore();
+  const { user, setUser } = useAuthStore();
 
-  // Which path are we on? null until the user makes the choice on step 1.
-  const [path, setPath] = useState<"ai" | "manual" | null>(null);
   const [stepIndex, setStepIndex] = useState(0);
+  const [fromAI, setFromAI] = useState(false);
 
-  // Data stores
-  const [parsedData, setParsedData] = useState<any>(null);
+  // ── Per-step data state ──────────────────────────────────────────────────
+  const [coreProfile, setCoreProfile] = useState<CoreProfileData>(
+    () => defaultCoreProfile(user)
+  );
 
-  const [profileData, setProfileData] = useState({
-    summary: "",
-    linkedin: "",
-    website: "",
-    location: "",
-  });
+  const [careerData, setCareerData] = useState<CareerData>(defaultCareerData);
 
-  const [manualData, setManualData] = useState<ManualProfileData>({
-    name: "",
-    email: "",
-    role: "",
-    summary: "",
-    location: "",
-    linkedin: "",
-    website: "",
-    skills: [],
-  });
-  const [manualValid, setManualValid] = useState(false);
+  const [skillsEduData, setSkillsEduData] = useState<SkillsEducationData>(
+    defaultSkillsEducation
+  );
 
   const [preferencesData, setPreferencesData] = useState({
     job_types: [] as string[],
@@ -108,87 +137,119 @@ export default function OnboardingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Derive current step list from chosen path (default to AI path for progress display)
-  const steps = path === "manual" ? MANUAL_STEPS : AI_STEPS;
-  const currentStepId: StepId = steps[stepIndex] ?? "upload";
+  // ── Derived ──────────────────────────────────────────────────────────────
+  const currentStepId: StepId = STEPS[stepIndex] ?? "upload";
   const { title, description } = stepMeta(currentStepId);
-
-  const totalSteps = steps.length;
+  const totalSteps = STEPS.length;
   const progress = ((stepIndex + 1) / totalSteps) * 100;
+  const isLastStep = stepIndex === STEPS.length - 1;
 
-  // ─── Navigation ─────────────────────────────────────────────────────────────
-
-  const goNext = () => setStepIndex((i) => i + 1);
+  // ── Navigation ────────────────────────────────────────────────────────────
+  const goNext = () => setStepIndex((i) => Math.min(STEPS.length - 1, i + 1));
   const goBack = () => setStepIndex((i) => Math.max(0, i - 1));
 
-  /** Called when the user uploads a resume successfully */
+  // ── Upload complete handler ────────────────────────────────────────────────
   const handleResumeUploaded = (data: any) => {
-    setPath("ai");
-    if (data) {
-      setParsedData(data);
-      const p = data.profile_updated;
-      if (p) {
-        setProfileData((prev) => ({
-          ...prev,
-          summary: p.summary || prev.summary,
-          location: p.location || prev.location,
-          linkedin: p.linkedin || prev.linkedin,
-          website: p.portfolio_url || prev.website,
-        }));
-      }
+    setFromAI(true);
+
+    const p = data?.profile_updated;
+    if (p) {
+      // ── Core profile ──────────────────────────────────────────────────
+      setCoreProfile({
+        full_name: p.name || user?.full_name || "",
+        email: p.email || user?.email || "",
+        phone: p.phone || "",
+        headline: p.headline || "",
+        location: p.location || "",
+        linkedin_url: p.linkedin_url || "",
+        portfolio_url: p.portfolio_url || "",
+      });
+
+      // ── Career data ───────────────────────────────────────────────────
+      const ci: CareerIntelligence = p.career_intelligence ?? defaultCareerIntelligence;
+      setCareerData({
+        bio: p.bio || "",
+        career_intelligence: {
+          years_experience: ci.years_experience ?? null,
+          primary_domain: ci.primary_domain ?? null,
+          specializations: Array.isArray(ci.specializations) ? ci.specializations : [],
+        },
+        job_titles: Array.isArray(p.job_titles) ? p.job_titles : [],
+      });
+
+      // ── Skills & education ────────────────────────────────────────────
+      const rawHard: any[] = p.hard_skills ?? [];
+      const rawSoft: any[] = p.soft_skills ?? [];
+      const rawEdu: any[] = p.education ?? [];
+
+      const toStrArr = (arr: any[]) =>
+        arr.map((s: any) => (typeof s === "string" ? s : s?.name ?? "")).filter(Boolean);
+
+      const eduEntries: EducationEntry[] = rawEdu.map((e: any) => ({
+        institution: e.institution ?? "",
+        degree: e.degree ?? "",
+        field_of_study: e.field_of_study ?? "",
+        start_year: e.start_year ?? null,
+        end_year: e.end_year ?? null,
+        relevant_coursework: Array.isArray(e.relevant_coursework) ? e.relevant_coursework : [],
+      }));
+
+      setSkillsEduData({
+        hard_skills: toStrArr(rawHard),
+        soft_skills: toStrArr(rawSoft),
+        education: eduEntries,
+      });
     }
+
     goNext();
   };
 
-  /** Called when the user clicks "Skip" on the upload step */
+  // ── Skip resume ────────────────────────────────────────────────────────────
   const handleSkipResume = () => {
-    setPath("manual");
-    setStepIndex(1); // jump to manual-profile (index 1 in MANUAL_STEPS)
+    setFromAI(false);
+    goNext();
   };
 
-  /** Final submission — same DB shape for both paths */
+  // ── Final submission ───────────────────────────────────────────────────────
   const handleFinish = async () => {
     setIsSubmitting(true);
     setSubmitError(null);
     try {
       const { authApi } = await import("@/lib/api/auth");
 
-      if (path === "manual") {
-        // Persist full manual profile + preferences in one PATCH
-        await authApi.patchMe({
-          full_name: manualData.name,
-          email: manualData.email,
-          headline: manualData.role,
-          summary: manualData.summary,
-          location: manualData.location,
-          linkedin: manualData.linkedin,
-          website: manualData.website,
-          skills: manualData.skills,
-          preferences: {
-            job_types: preferencesData.job_types,
-            industries: preferencesData.industries,
-            salary_min: preferencesData.salary_min,
-            remote: preferencesData.remote,
-          },
-          onboarding_complete: true,
-        });
-      } else {
-        // AI path — profile fields were pre-filled from parsed data and
-        // optionally edited in the profile-completion step
-        await authApi.patchMe({
-          summary: profileData.summary,
-          linkedin: profileData.linkedin,
-          website: profileData.website,
-          location: profileData.location,
-          preferences: {
-            job_types: preferencesData.job_types,
-            industries: preferencesData.industries,
-            salary_min: preferencesData.salary_min,
-            remote: preferencesData.remote,
-          },
-          onboarding_complete: true,
-        });
-      }
+      // Merge hard + soft skills into the unified skills array
+      const allSkills = [
+        ...skillsEduData.hard_skills.map((name) => ({ name, level: "intermediate", type: "hard" })),
+        ...skillsEduData.soft_skills.map((name) => ({ name, level: "intermediate", type: "soft" })),
+      ];
+
+      await authApi.patchMe({
+        // Core profile
+        full_name: coreProfile.full_name,
+        headline: coreProfile.headline,
+        phone: coreProfile.phone,
+        location: coreProfile.location,
+        linkedin: coreProfile.linkedin_url,
+        website: coreProfile.portfolio_url,
+
+        // Career data
+        summary: careerData.bio,
+
+        // Skills & education
+        skills: allSkills,
+        education: skillsEduData.education,
+
+        // Preferences (including career intelligence merged in)
+        preferences: {
+          job_types: preferencesData.job_types,
+          industries: preferencesData.industries,
+          salary_min: preferencesData.salary_min,
+          remote: preferencesData.remote,
+          career_intelligence: careerData.career_intelligence,
+        },
+
+        onboarding_complete: true,
+      } as any);
 
       const updatedUser = await authApi.getMe();
       setUser(updatedUser);
@@ -201,14 +262,6 @@ export default function OnboardingPage() {
     }
   };
 
-  // ─── Continue / back button logic ────────────────────────────────────────────
-
-  const isLastStep = stepIndex === steps.length - 1;
-
-  const isContinueDisabled =
-    isSubmitting ||
-    (currentStepId === "manual-profile" && !manualValid);
-
   const handleContinue = () => {
     if (isLastStep) {
       handleFinish();
@@ -217,17 +270,30 @@ export default function OnboardingPage() {
     }
   };
 
-  // ─── Render ──────────────────────────────────────────────────────────────────
+  const isContinueDisabled = isSubmitting;
+
+  // ─── Render ──────────────────────────────────────────────────────────────
 
   return (
     <div className="w-full max-w-2xl mx-auto flex flex-col gap-6">
-      {/* Progress bar */}
+      {/* Progress */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm font-medium text-muted-foreground">
           <span>Step {stepIndex + 1} of {totalSteps}</span>
           <span>{Math.round(progress)}%</span>
         </div>
         <Progress value={progress} className="h-2" />
+        {/* Step labels */}
+        <div className="hidden sm:flex justify-between text-[10px] text-muted-foreground px-0.5 mt-0.5">
+          {STEPS.map((s, i) => (
+            <span
+              key={s}
+              className={i <= stepIndex ? "text-primary font-semibold" : ""}
+            >
+              {stepMeta(s).title.split(" ")[0]}
+            </span>
+          ))}
+        </div>
       </div>
 
       <Card className="shadow-lg border-muted">
@@ -252,22 +318,27 @@ export default function OnboardingPage() {
                 />
               )}
 
-              {currentStepId === "ai-preview" && (
-                <AIParsingPreview parsedData={parsedData} />
-              )}
-
-              {currentStepId === "profile-completion" && (
-                <ProfileCompletion
-                  data={profileData}
-                  onChange={setProfileData}
+              {currentStepId === "core-profile" && (
+                <CoreProfileStep
+                  data={coreProfile}
+                  onChange={setCoreProfile}
+                  fromAI={fromAI}
                 />
               )}
 
-              {currentStepId === "manual-profile" && (
-                <ManualProfile
-                  data={manualData}
-                  onChange={setManualData}
-                  onValidChange={setManualValid}
+              {currentStepId === "career-intelligence" && (
+                <CareerIntelligenceStep
+                  data={careerData}
+                  onChange={setCareerData}
+                  fromAI={fromAI}
+                />
+              )}
+
+              {currentStepId === "skills-education" && (
+                <SkillsEducationStep
+                  data={skillsEduData}
+                  onChange={setSkillsEduData}
+                  fromAI={fromAI}
                 />
               )}
 
@@ -281,9 +352,7 @@ export default function OnboardingPage() {
           </AnimatePresence>
 
           {submitError && (
-            <p className="mt-4 text-sm text-destructive text-center">
-              {submitError}
-            </p>
+            <p className="mt-4 text-sm text-destructive text-center">{submitError}</p>
           )}
         </CardContent>
 
@@ -295,16 +364,14 @@ export default function OnboardingPage() {
           >
             Back
           </Button>
-          {/* Hide Continue on step 1 — navigation is driven by upload/skip actions */}
+
+          {/* Upload step drives its own navigation (inside the component) */}
           {currentStepId !== "upload" && (
-            <Button
-              onClick={handleContinue}
-              disabled={isContinueDisabled}
-            >
+            <Button onClick={handleContinue} disabled={isContinueDisabled}>
               {isSubmitting
                 ? "Saving…"
                 : isLastStep
-                ? "Complete"
+                ? "Complete setup"
                 : "Continue"}
             </Button>
           )}
