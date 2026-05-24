@@ -2,15 +2,7 @@
 
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Sparkles,
-  RotateCcw,
-  Copy,
-  Check,
-  Pencil,
-  Eye,
-  Loader2,
-} from "lucide-react";
+import { Sparkles, RotateCcw, Copy, Check, Pencil, Eye, Loader2, Save } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,112 +10,60 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Job } from "@/types";
 import { useAuthStore } from "@/store/auth.store";
-import { UserProfile } from "@/lib/api/auth";
+import { type AiContent } from "@/lib/api/applications";
 
 interface AiResumeEditorProps {
   job: Job;
   isGenerating: boolean;
+  aiContent: AiContent | null;
+  onRegenerate: () => void;
+  onSave: (bullets: string) => Promise<void>;
 }
 
-// Simulated AI-tailored resume sections
-function generateResumeSections(job: Job, user: UserProfile | null) {
-  const defaultExperience = [
-    {
-      title: "Senior Software Engineer",
-      company: "TechCorp",
-      period: "2022 — Present",
-      bullets: [
-        `Led development of customer-facing applications using ${job.skills[0] || 'modern tech'} and ${job.skills[1] || 'tools'}, resulting in a 40% increase in user engagement`,
-        `Architected and deployed scalable microservices handling 10M+ daily requests with 99.99% uptime`,
-        `Mentored a team of 5 junior developers, establishing code review processes that reduced bugs by 35%`,
-        `Collaborated with product and design teams to ship 12 major features in the ${job.industry} space`,
-      ],
-      isAiModified: true,
-    },
-    {
-      title: "Software Engineer",
-      company: "StartupXYZ",
-      period: "2020 — 2022",
-      bullets: [
-        `Built and maintained full-stack applications using ${job.skills.slice(0, 2).join(" and ")}`,
-        `Implemented CI/CD pipelines that reduced deployment time from 2 hours to 15 minutes`,
-        `Designed RESTful APIs consumed by mobile and web clients, serving 50K+ daily active users`,
-      ],
-      isAiModified: true,
-    },
-    {
-      title: "Junior Developer",
-      company: "Digital Agency",
-      period: "2018 — 2020",
-      bullets: [
-        "Developed responsive web applications for enterprise clients across multiple industries",
-        "Participated in agile sprints, consistently delivering features ahead of schedule",
-      ],
-      isAiModified: false,
-    },
-  ];
-
-  const defaultEducation = {
-    degree: "B.S. Computer Science",
-    school: "University of California, Berkeley",
-    year: "2018",
-  };
-
-  const experience = user?.experience && user.experience.length > 0
-    ? user.experience.map((exp, idx) => ({
-        title: exp.title,
-        company: exp.company,
-        period: `${new Date(exp.start_date).getFullYear()} — ${exp.current || !exp.end_date ? 'Present' : new Date(exp.end_date).getFullYear()}`,
-        bullets: exp.description ? exp.description.split('\n').filter(Boolean) : [`Contributed to ${exp.company} as a ${exp.title}`],
-        isAiModified: idx === 0,
-      }))
-    : defaultExperience;
-
-  if (experience.length > 0 && experience[0].isAiModified && user?.experience && user.experience.length > 0) {
-    experience[0].bullets = [
-      `Leveraged ${job.skills[0] || 'modern tech'} and ${job.skills[1] || 'industry tools'} to accelerate project delivery`,
-      ...experience[0].bullets
-    ];
-  }
-
-  const education = user?.education && user.education.length > 0
-    ? {
-        degree: user.education[0].degree,
-        school: user.education[0].institution,
-        year: new Date(user.education[0].end_date || user.education[0].start_date).getFullYear().toString() || "Unknown",
-      }
-    : defaultEducation;
-
-  return {
-    summary: user?.summary || user?.profile?.bio || `Highly motivated ${job.experienceLevel}-level professional with deep expertise in ${job.skills.slice(0, 3).join(", ")}. Proven track record of building scalable products at top-tier technology companies with a focus on ${job.industry.toLowerCase()} innovation. Passionate about leveraging technology to solve complex problems and drive business outcomes.`,
-    experience,
-    education,
-    skills: user?.skills && user.skills.length > 0 ? user.skills : job.skills,
-  };
-}
-
-export function AiResumeEditor({ job, isGenerating }: AiResumeEditorProps) {
-  const user = useAuthStore((state) => state.user);
+export function AiResumeEditor({ job, isGenerating, aiContent, onRegenerate, onSave }: AiResumeEditorProps) {
+  const user = useAuthStore((s) => s.user);
   const [isEditing, setIsEditing] = React.useState(false);
-  const [isRegenerating, setIsRegenerating] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
-  const resume = React.useMemo(() => generateResumeSections(job, user), [job, user]);
-  const [editedSummary, setEditedSummary] = React.useState(resume.summary);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saved, setSaved] = React.useState(false);
 
-  const handleRegenerate = async () => {
-    setIsRegenerating(true);
-    await new Promise((r) => setTimeout(r, 2000));
-    setIsRegenerating(false);
-  };
+  // The editable text — seeded from aiContent or fallback from profile
+  const fallbackBullets = React.useMemo(() => {
+    if (user?.experience && user.experience.length > 0) {
+      return user.experience
+        .map((exp) =>
+          `${exp.title} at ${exp.company}:\n${exp.description || "(No description provided)"}`
+        )
+        .join("\n\n");
+    }
+    return `No experience data found. Please complete your profile to generate tailored bullets for ${job.title} at ${job.company}.`;
+  }, [user, job]);
+
+  const [editedBullets, setEditedBullets] = React.useState(fallbackBullets);
+
+  // Sync editable text when AI content arrives
+  React.useEffect(() => {
+    if (aiContent?.tailored_bullets) {
+      setEditedBullets(aiContent.tailored_bullets);
+    }
+  }, [aiContent?.tailored_bullets]);
 
   const handleCopy = () => {
+    navigator.clipboard?.writeText(editedBullets);
     setCopied(true);
-    navigator.clipboard?.writeText(
-      `${resume.summary}\n\n${resume.experience.map((e) => `${e.title} at ${e.company}\n${e.bullets.join("\n")}`).join("\n\n")}`
-    );
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleSave = async () => {
+    setIsSaving(true);
+    await onSave(editedBullets);
+    setIsSaving(false);
+    setSaved(true);
+    setIsEditing(false);
+    setTimeout(() => setSaved(false), 2500);
+  };
+
+  // ── Loading skeleton ───────────────────────────────────────────────────────
   if (isGenerating) {
     return (
       <div className="p-6 space-y-6">
@@ -136,27 +76,12 @@ export function AiResumeEditor({ job, isGenerating }: AiResumeEditorProps) {
           </div>
           <div>
             <p className="font-semibold">Tailoring your resume...</p>
-            <p className="text-sm text-muted-foreground">
-              Optimizing for {job.title} at {job.company}
-            </p>
+            <p className="text-sm text-muted-foreground">Optimizing for {job.title} at {job.company}</p>
           </div>
         </div>
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-[90%]" />
-        <Skeleton className="h-4 w-[75%]" />
-        <div className="pt-4 space-y-4">
-          <Skeleton className="h-4 w-[40%]" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-[95%]" />
-          <Skeleton className="h-3 w-[85%]" />
-          <Skeleton className="h-3 w-[90%]" />
-        </div>
-        <div className="pt-4 space-y-4">
-          <Skeleton className="h-4 w-[35%]" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-[80%]" />
-          <Skeleton className="h-3 w-[70%]" />
-        </div>
+        {[1, 0.9, 0.75, 0.4, 1, 0.95, 0.85, 0.9, 0.35, 1, 0.8, 0.7].map((w, i) => (
+          <Skeleton key={i} className="h-3.5" style={{ width: `${w * 100}%` }} />
+        ))}
       </div>
     );
   }
@@ -164,202 +89,102 @@ export function AiResumeEditor({ job, isGenerating }: AiResumeEditorProps) {
   return (
     <div className="p-6 space-y-6">
       {/* Toolbar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 gap-1">
             <Sparkles className="h-3 w-3" />
             AI-Tailored
           </Badge>
-          <span className="text-xs text-muted-foreground">
-            Optimized for {job.company}
-          </span>
+          <span className="text-xs text-muted-foreground">Optimized for {job.company}</span>
+          {saved && <span className="text-xs text-emerald-600 flex items-center gap-1"><Check className="h-3 w-3" /> Saved</span>}
         </div>
         <div className="flex items-center gap-1.5">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 rounded-lg gap-1.5 text-xs"
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? (
-              <>
-                <Eye className="h-3.5 w-3.5" />
-                Preview
-              </>
-            ) : (
-              <>
-                <Pencil className="h-3.5 w-3.5" />
-                Edit
-              </>
-            )}
+          <Button variant="ghost" size="sm" className="h-8 rounded-lg gap-1.5 text-xs" onClick={() => setIsEditing(!isEditing)}>
+            {isEditing ? <><Eye className="h-3.5 w-3.5" />Preview</> : <><Pencil className="h-3.5 w-3.5" />Edit</>}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 rounded-lg gap-1.5 text-xs"
-            onClick={handleCopy}
-          >
-            {copied ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-emerald-500" />
-                Copied
-              </>
-            ) : (
-              <>
-                <Copy className="h-3.5 w-3.5" />
-                Copy
-              </>
-            )}
+          <Button variant="ghost" size="sm" className="h-8 rounded-lg gap-1.5 text-xs" onClick={handleCopy}>
+            {copied ? <><Check className="h-3.5 w-3.5 text-emerald-500" />Copied</> : <><Copy className="h-3.5 w-3.5" />Copy</>}
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 rounded-lg gap-1.5 text-xs"
-            onClick={handleRegenerate}
-            disabled={isRegenerating}
-          >
-            {isRegenerating ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RotateCcw className="h-3.5 w-3.5" />
-            )}
+          {isEditing && (
+            <Button variant="ghost" size="sm" className="h-8 rounded-lg gap-1.5 text-xs" onClick={handleSave} disabled={isSaving}>
+              {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+              Save
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" className="h-8 rounded-lg gap-1.5 text-xs" onClick={onRegenerate}>
+            <RotateCcw className="h-3.5 w-3.5" />
             Regenerate
           </Button>
         </div>
       </div>
 
+      {/* Content */}
       <AnimatePresence mode="wait">
-        {isRegenerating ? (
-          <motion.div
-            key="regenerating"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-4 py-8"
-          >
-            <div className="flex items-center justify-center gap-3">
-              <Loader2 className="h-5 w-5 animate-spin text-emerald-500" />
-              <span className="text-sm text-muted-foreground">
-                Regenerating resume content...
-              </span>
-            </div>
-          </motion.div>
-        ) : (
-          <motion.div
-            key="content"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="space-y-6"
-          >
-            {/* Summary */}
+        <motion.div key="content" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
+          {/* Summary from profile */}
+          {(user?.summary || user?.profile?.bio) && (
             <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                  Professional Summary
-                </h3>
-                <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              </div>
-              <div className="relative group">
+              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Professional Summary</h3>
+              <div className="relative">
                 <div className="absolute -left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-emerald-500 to-transparent rounded-full" />
-                {isEditing ? (
-                  <Textarea
-                    value={editedSummary}
-                    onChange={(e) => setEditedSummary(e.target.value)}
-                    rows={4}
-                    className="text-sm leading-relaxed resize-none"
-                  />
-                ) : (
-                  <p className="text-sm leading-relaxed pl-1">
-                    {editedSummary}
-                  </p>
-                )}
+                <p className="text-sm leading-relaxed pl-1">{user?.summary || user?.profile?.bio}</p>
               </div>
             </div>
+          )}
 
-            {/* Experience */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                Experience
-              </h3>
-              {resume.experience.map((exp, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="relative group"
-                >
-                  {exp.isAiModified && (
-                    <div className="absolute -left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-emerald-500 to-transparent rounded-full" />
-                  )}
-                  <div className="pl-1 space-y-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h4 className="font-medium text-sm">{exp.title}</h4>
-                        <p className="text-xs text-muted-foreground">
-                          {exp.company} · {exp.period}
-                        </p>
-                      </div>
-                      {exp.isAiModified && (
-                        <Badge
-                          variant="secondary"
-                          className="text-[10px] h-5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0 shrink-0"
-                        >
-                          AI enhanced
-                        </Badge>
-                      )}
-                    </div>
-                    <ul className="space-y-1.5">
-                      {exp.bullets.map((bullet, bi) => (
-                        <li
-                          key={bi}
-                          className="text-sm text-muted-foreground flex items-start gap-2"
-                        >
-                          <span className="text-emerald-500 mt-1.5 shrink-0">
-                            •
-                          </span>
-                          {bullet}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </motion.div>
+          {/* AI Tailored bullets */}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Tailored Experience</h3>
+              <Badge variant="secondary" className="text-[10px] h-5 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0">AI enhanced</Badge>
+            </div>
+            <div className="relative">
+              <div className="absolute -left-3 top-0 bottom-0 w-0.5 bg-gradient-to-b from-emerald-500 to-transparent rounded-full" />
+              {isEditing ? (
+                <Textarea
+                  value={editedBullets}
+                  onChange={(e) => setEditedBullets(e.target.value)}
+                  rows={16}
+                  className="text-sm leading-relaxed resize-none font-mono text-xs"
+                />
+              ) : (
+                <div className="pl-1 space-y-1">
+                  {editedBullets.split("\n").map((line, i) => (
+                    <p key={i} className={`text-sm leading-relaxed ${line.startsWith("•") || line.startsWith("-") ? "pl-3" : line.trim() === "" ? "h-2" : "font-medium"}`}>
+                      {line}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Education */}
+          {user?.education && user.education.length > 0 && (
+            <div className="space-y-2">
+              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Education</h3>
+              {user.education.map((edu, i) => (
+                <div key={i} className="pl-1">
+                  <h4 className="font-medium text-sm">{edu.degree}{edu.field ? ` in ${edu.field}` : ""}</h4>
+                  <p className="text-xs text-muted-foreground">{edu.institution}</p>
+                </div>
               ))}
             </div>
+          )}
 
-            {/* Education */}
+          {/* Skills */}
+          {user?.skills && user.skills.length > 0 && (
             <div className="space-y-2">
-              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                Education
-              </h3>
-              <div className="pl-1">
-                <h4 className="font-medium text-sm">{resume.education.degree}</h4>
-                <p className="text-xs text-muted-foreground">
-                  {resume.education.school} · {resume.education.year}
-                </p>
-              </div>
-            </div>
-
-            {/* Skills */}
-            <div className="space-y-2">
-              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
-                Skills
-              </h3>
+              <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Skills</h3>
               <div className="flex flex-wrap gap-1.5">
-                {resume.skills.map((skill) => (
-                  <Badge
-                    key={skill}
-                    variant="secondary"
-                    className="rounded-lg text-xs"
-                  >
-                    {skill}
-                  </Badge>
-                ))}
+                {(user.skills as Array<string | { name: string }>).map((s, i) => {
+                  const name = typeof s === "string" ? s : s.name;
+                  return <Badge key={i} variant="secondary" className="rounded-lg text-xs">{name}</Badge>;
+                })}
               </div>
             </div>
-          </motion.div>
-        )}
+          )}
+        </motion.div>
       </AnimatePresence>
     </div>
   );

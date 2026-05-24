@@ -13,6 +13,9 @@ import {
   BookmarkPlus,
   BookmarkCheck,
   ChevronRight,
+  ChevronLeft,
+  ChevronsLeft,
+  ChevronsRight,
   X,
   DollarSign,
 } from "lucide-react";
@@ -402,10 +405,114 @@ function FilterSidebar({
 // ---------------------------------------------------------------------------
 // Page
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Pagination component
+// ---------------------------------------------------------------------------
+const PAGE_SIZE = 12;
+
+function Pagination({
+  currentPage,
+  totalPages,
+  onPageChange,
+}: {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+}) {
+  if (totalPages <= 1) return null;
+
+  // Build a compact window: always show first/last + up to 3 around current
+  const getPages = () => {
+    const pages: (number | "...")[] = [];
+    if (totalPages <= 7) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+      return pages;
+    }
+    pages.push(1);
+    if (currentPage > 4) pages.push("...");
+    const start = Math.max(2, currentPage - 1);
+    const end = Math.min(totalPages - 1, currentPage + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (currentPage < totalPages - 3) pages.push("...");
+    pages.push(totalPages);
+    return pages;
+  };
+
+  return (
+    <div className="flex items-center justify-center gap-1 pt-6 pb-2 select-none">
+      {/* First */}
+      <button
+        onClick={() => onPageChange(1)}
+        disabled={currentPage === 1}
+        className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
+        aria-label="First page"
+      >
+        <ChevronsLeft className="h-4 w-4" />
+      </button>
+      {/* Prev */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
+        aria-label="Previous page"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+
+      {/* Page numbers */}
+      {getPages().map((p, i) =>
+        p === "..." ? (
+          <span key={`ellipsis-${i}`} className="h-8 w-8 flex items-center justify-center text-muted-foreground text-sm">
+            …
+          </span>
+        ) : (
+          <button
+            key={p}
+            onClick={() => onPageChange(p as number)}
+            className={cn(
+              "h-8 w-8 rounded-lg text-sm font-medium transition-colors",
+              currentPage === p
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            )}
+            aria-current={currentPage === p ? "page" : undefined}
+          >
+            {p}
+          </button>
+        )
+      )}
+
+      {/* Next */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
+        aria-label="Next page"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+      {/* Last */}
+      <button
+        onClick={() => onPageChange(totalPages)}
+        disabled={currentPage === totalPages}
+        className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-30 disabled:pointer-events-none"
+        aria-label="Last page"
+      >
+        <ChevronsRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Page
+// ---------------------------------------------------------------------------
 export default function JobsPage() {
   const router = useRouter();
-  const { jobs, fetchJobs, isLoading, error } = useJobStore();
+  const { jobs, fetchJobs, isLoading, error, currentPage, totalCount, setPage } = useJobStore();
   const { addApplication } = useApplicationStore();
+
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
 
   const [selectedJob, setSelectedJob] = React.useState<Job | null>(null);
 
@@ -418,7 +525,7 @@ export default function JobsPage() {
   const [salaryRange, setSalaryRange] = React.useState<[number, number]>([0, 500000]);
   const [remoteOnly, setRemoteOnly] = React.useState(false);
 
-  // We can debounce the fetch so it doesn't slam the API on every keystroke
+  // Debounce filter changes → always reset to page 1
   React.useEffect(() => {
     const handler = setTimeout(() => {
       fetchJobs({
@@ -430,6 +537,8 @@ export default function JobsPage() {
         salary_min: salaryRange[0] > 0 ? salaryRange[0] : undefined,
         salary_max: salaryRange[1] < 500000 ? salaryRange[1] : undefined,
         remote: remoteOnly || undefined,
+        page: 1,
+        page_size: PAGE_SIZE,
       });
     }, 400);
 
@@ -444,6 +553,26 @@ export default function JobsPage() {
     salaryRange,
     remoteOnly,
   ]);
+
+  // Handle page navigation (preserves current filters)
+  const handlePageChange = (page: number) => {
+    setPage(page);
+    // also pass current filters + new page so the store's fetchJobs picks them up
+    fetchJobs({
+      keyword: keyword || undefined,
+      location: location || undefined,
+      industry: industry !== "All Industries" ? industry : undefined,
+      experience_level: experienceLevel !== "All Levels" ? experienceLevel : undefined,
+      job_type: jobType !== "All Types" ? jobType : undefined,
+      salary_min: salaryRange[0] > 0 ? salaryRange[0] : undefined,
+      salary_max: salaryRange[1] < 500000 ? salaryRange[1] : undefined,
+      remote: remoteOnly || undefined,
+      page,
+      page_size: PAGE_SIZE,
+    });
+    // Scroll grid back to top
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const resetFilters = () => {
     setKeyword("");
@@ -489,7 +618,12 @@ export default function JobsPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Job Discovery</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              <span className="font-semibold text-foreground">{jobs.length}</span> matches found
+              <span className="font-semibold text-foreground">{totalCount}</span> matches found
+              {totalPages > 1 && (
+                <span className="ml-2 text-muted-foreground/60">
+                  · Page {currentPage} of {totalPages}
+                </span>
+              )}
             </p>
           </div>
 
@@ -578,6 +712,11 @@ export default function JobsPage() {
                   />
                 ))}
               </div>
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+              />
             </AnimatePresence>
           )}
         </div>

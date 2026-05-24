@@ -4,19 +4,16 @@ import * as React from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  ArrowLeft,
-  FileText,
-  PenLine,
-  Mail,
-  ListChecks,
-  SendHorizonal,
-  Sparkles,
+  ArrowLeft, FileText, PenLine, Mail, ListChecks,
+  SendHorizonal, Sparkles, AlertCircle,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { jobsApi } from "@/lib/api/jobs";
+import { applicationsApi, type AiContent, type ApplicationResponse } from "@/lib/api/applications";
+import { pollTask } from "@/lib/api/tasks";
 import { type Job } from "@/types";
 import { JobDescriptionPanel } from "@/components/application/job-description-panel";
 import { AiResumeEditor } from "@/components/application/ai-resume-editor";
@@ -29,36 +26,84 @@ export default function ApplicationPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = params.jobId as string;
-  
+
   const [job, setJob] = React.useState<Job | null>(null);
+  const [application, setApplication] = React.useState<ApplicationResponse | null>(null);
   const [isLoadingJob, setIsLoadingJob] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
+  // AI generation state
+  const [aiContent, setAiContent] = React.useState<AiContent | null>(null);
+  const [isGenerating, setIsGenerating] = React.useState(false);
+  const [generationError, setGenerationError] = React.useState<string | null>(null);
+
   const [activeTab, setActiveTab] = React.useState("resume");
   const [isReviewOpen, setIsReviewOpen] = React.useState(false);
-  const [isGenerating, setIsGenerating] = React.useState(true);
 
+  // ── Step 1: Load job + get-or-create Application ──────────────────────────
   React.useEffect(() => {
-    async function fetchJob() {
+    async function init() {
       setIsLoadingJob(true);
       try {
-        const data = await jobsApi.get(jobId);
-        setJob(data);
+        const [jobData, appData] = await Promise.all([
+          jobsApi.get(jobId),
+          applicationsApi.getOrCreate(jobId),
+        ]);
+        setJob(jobData);
+        setApplication(appData);
+
+        // If we already have cached AI content, use it immediately
+        if (appData.ai_content && (appData.ai_content.tailored_bullets || appData.ai_content.cover_letter)) {
+          setAiContent(appData.ai_content);
+        } else {
+          // Otherwise kick off generation
+          generateContent(appData.id);
+        }
       } catch (err) {
         setError("Failed to load job details.");
       } finally {
         setIsLoadingJob(false);
       }
     }
-    fetchJob();
+    init();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [jobId]);
 
-  // Simulate initial AI generation
-  React.useEffect(() => {
-    if (!job) return;
-    const timer = setTimeout(() => setIsGenerating(false), 2400);
-    return () => clearTimeout(timer);
-  }, [job]);
+  // ── AI Generation ──────────────────────────────────────────────────────────
+  const generateContent = async (applicationId: string) => {
+    setIsGenerating(true);
+    setGenerationError(null);
+    try {
+      const { task_id } = await applicationsApi.generate({
+        application_id: applicationId,
+      });
+      const result = await pollTask<AiContent>(task_id, 2500, 60);
+      if (result.status === "SUCCESS" && result.result) {
+        setAiContent(result.result);
+      } else {
+        setGenerationError("AI generation failed. You can try regenerating below.");
+      }
+    } catch (err) {
+      setGenerationError("AI generation timed out. You can try regenerating.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRegenerate = () => {
+    if (application) generateContent(application.id);
+  };
+
+  // ── Save edits ─────────────────────────────────────────────────────────────
+  const handleSaveAiContent = async (patch: Partial<AiContent>) => {
+    if (!application) return;
+    try {
+      const updated = await applicationsApi.saveAiContent(application.id, patch);
+      setAiContent(updated.ai_content);
+    } catch {
+      // Non-fatal — edits are still live in local state
+    }
+  };
 
   if (isLoadingJob) {
     return (
@@ -88,32 +133,24 @@ export default function ApplicationPage() {
           className="flex items-center justify-between border-b bg-card/80 backdrop-blur-md px-4 sm:px-6 py-3 shrink-0"
         >
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => router.back()}
-              className="rounded-xl"
-            >
+            <Button variant="ghost" size="icon" onClick={() => router.back()} className="rounded-xl">
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <div>
               <h1 className="text-lg font-semibold tracking-tight leading-none">
                 Apply to {job.company}
               </h1>
-              <p className="text-sm text-muted-foreground mt-0.5">
-                {job.title}
-              </p>
+              <p className="text-sm text-muted-foreground mt-0.5">{job.title}</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            <Badge
-              variant="secondary"
-              className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0"
-            >
-              <Sparkles className="h-3 w-3 mr-1" />
-              {job.matchScore}% Match
-            </Badge>
+            {job.matchScore > 0 && (
+              <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-0">
+                <Sparkles className="h-3 w-3 mr-1" />
+                {job.matchScore}% Match
+              </Badge>
+            )}
             <Button
               onClick={() => setIsReviewOpen(true)}
               className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl gap-2"
@@ -127,7 +164,7 @@ export default function ApplicationPage() {
 
         {/* Split-screen content */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left: Job description (hidden on mobile, shown as tab) */}
+          {/* Left: Job description */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -144,39 +181,23 @@ export default function ApplicationPage() {
             transition={{ delay: 0.2 }}
             className="flex-1 flex flex-col overflow-hidden"
           >
-            <Tabs
-              value={activeTab}
-              onValueChange={setActiveTab}
-              className="flex flex-col flex-1 overflow-hidden"
-            >
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex flex-col flex-1 overflow-hidden">
               <div className="border-b px-4 sm:px-6 bg-card/40">
                 <TabsList className="h-12 bg-transparent gap-1 w-full justify-start">
-                  <TabsTrigger
-                    value="job"
-                    className="lg:hidden data-[state=active]:bg-muted rounded-lg gap-2 text-sm"
-                  >
+                  <TabsTrigger value="job" className="lg:hidden data-[state=active]:bg-muted rounded-lg gap-2 text-sm">
                     <FileText className="h-4 w-4" />
                     <span className="hidden sm:inline">Job</span>
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="resume"
-                    className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm"
-                  >
+                  <TabsTrigger value="resume" className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm">
                     <PenLine className="h-4 w-4" />
                     Resume
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="cover-letter"
-                    className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm"
-                  >
+                  <TabsTrigger value="cover-letter" className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm">
                     <Mail className="h-4 w-4" />
                     <span className="hidden sm:inline">Cover Letter</span>
                     <span className="sm:hidden">Letter</span>
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="autofill"
-                    className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm"
-                  >
+                  <TabsTrigger value="autofill" className="data-[state=active]:bg-muted rounded-lg gap-2 text-sm">
                     <ListChecks className="h-4 w-4" />
                     <span className="hidden sm:inline">Form Fields</span>
                     <span className="sm:hidden">Fields</span>
@@ -186,66 +207,51 @@ export default function ApplicationPage() {
 
               <div className="flex-1 overflow-y-auto">
                 <AnimatePresence mode="wait">
-                  {/* Mobile-only job tab */}
-                  <TabsContent
-                    value="job"
-                    className="lg:hidden m-0 h-full focus-visible:ring-0"
-                  >
-                    <motion.div
-                      key="job-tab"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                    >
+                  <TabsContent value="job" className="lg:hidden m-0 h-full focus-visible:ring-0">
+                    <motion.div key="job-tab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                       <JobDescriptionPanel job={job} />
                     </motion.div>
                   </TabsContent>
 
-                  <TabsContent
-                    value="resume"
-                    className="m-0 h-full focus-visible:ring-0"
-                  >
-                    <motion.div
-                      key="resume-tab"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                    >
+                  <TabsContent value="resume" className="m-0 h-full focus-visible:ring-0">
+                    <motion.div key="resume-tab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                      {generationError && (
+                        <div className="flex items-center gap-2 mx-6 mt-4 p-3 rounded-xl bg-destructive/10 text-destructive text-sm">
+                          <AlertCircle className="h-4 w-4 shrink-0" />
+                          {generationError}
+                          <Button size="sm" variant="ghost" className="ml-auto h-7" onClick={handleRegenerate}>Retry</Button>
+                        </div>
+                      )}
                       <AiResumeEditor
                         job={job}
                         isGenerating={isGenerating}
+                        aiContent={aiContent}
+                        onRegenerate={handleRegenerate}
+                        onSave={(bullets) => handleSaveAiContent({ tailored_bullets: bullets })}
                       />
                     </motion.div>
                   </TabsContent>
 
-                  <TabsContent
-                    value="cover-letter"
-                    className="m-0 h-full focus-visible:ring-0"
-                  >
-                    <motion.div
-                      key="cover-letter-tab"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                    >
+                  <TabsContent value="cover-letter" className="m-0 h-full focus-visible:ring-0">
+                    <motion.div key="cover-letter-tab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
                       <AiCoverLetterEditor
                         job={job}
                         isGenerating={isGenerating}
+                        aiContent={aiContent}
+                        onRegenerate={handleRegenerate}
+                        onSave={(letter) => handleSaveAiContent({ cover_letter: letter })}
                       />
                     </motion.div>
                   </TabsContent>
 
-                  <TabsContent
-                    value="autofill"
-                    className="m-0 h-full focus-visible:ring-0"
-                  >
-                    <motion.div
-                      key="autofill-tab"
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -8 }}
-                    >
-                      <FormAutofillPreview job={job} />
+                  <TabsContent value="autofill" className="m-0 h-full focus-visible:ring-0">
+                    <motion.div key="autofill-tab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+                      <FormAutofillPreview
+                        job={job}
+                        isGenerating={isGenerating}
+                        aiFormFields={aiContent?.form_fields}
+                        onSave={(fields) => handleSaveAiContent({ form_fields: fields })}
+                      />
                     </motion.div>
                   </TabsContent>
                 </AnimatePresence>
@@ -255,11 +261,7 @@ export default function ApplicationPage() {
         </div>
       </div>
 
-      <ReviewSubmitModal
-        job={job}
-        open={isReviewOpen}
-        onOpenChange={setIsReviewOpen}
-      />
+      <ReviewSubmitModal job={job} open={isReviewOpen} onOpenChange={setIsReviewOpen} />
     </>
   );
 }

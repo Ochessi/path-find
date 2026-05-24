@@ -21,6 +21,7 @@ export interface ApplicationResponse {
   applied_at: string | null;
   updated_at: string;
   notes: string;
+  ai_content: AiContent | null;
   resume: number | null;
   cover_letter: number | null;
 }
@@ -37,6 +38,20 @@ export interface PaginatedApplications {
   next: string | null;
   previous: string | null;
   results: FrontendApplication[];
+}
+
+export interface AiContent {
+  tailored_bullets?: string;
+  cover_letter?: string;
+  form_fields?: {
+    why_us?: string;
+    years_experience?: string;
+    salary_expectation?: string;
+    earliest_start?: string;
+    visa_sponsorship?: string;
+    work_authorization?: string;
+  };
+  error?: string;
 }
 
 export interface GeneratePayload {
@@ -155,6 +170,29 @@ export const applicationsApi = {
       .then((r) => r.data),
 
   /**
+   * POST /api/jobs/applications/get-or-create/
+   * Returns or creates the Application record for a given job listing.
+   */
+  getOrCreate: (jobListingId: string) =>
+    apiClient
+      .post<ApplicationResponse>("/api/jobs/applications/get-or-create/", {
+        job_listing_id: jobListingId,
+      })
+      .then((r) => r.data),
+
+  /**
+   * PATCH /api/jobs/applications/<id>/ai-content/
+   * Merges edits into the stored ai_content JSON blob.
+   */
+  saveAiContent: (applicationId: string, content: Partial<AiContent>) =>
+    apiClient
+      .patch<ApplicationResponse>(
+        `/api/jobs/applications/${applicationId}/ai-content/`,
+        content
+      )
+      .then((r) => r.data),
+
+  /**
    * POST /api/jobs/applications/generate/
    * Trigger AI content generation (cover letter + tailored resume).
    * Returns 202 Accepted with task_id – poll via tasksApi.
@@ -174,3 +212,4 @@ export const applicationsApi = {
       .post<TaskAccepted>(`/api/jobs/applications/${applicationId}/submit-portal/`)
       .then((r) => r.data),
 };
+

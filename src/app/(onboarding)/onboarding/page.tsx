@@ -153,11 +153,12 @@ export default function OnboardingPage() {
     setFromAI(true);
 
     const p = data?.profile_updated;
+    const ext = data?.extracted;
     if (p) {
       // ── Core profile ──────────────────────────────────────────────────
       setCoreProfile({
-        full_name: p.name || user?.full_name || "",
-        email: p.email || user?.email || "",
+        full_name: ext?.name || p.name || user?.full_name || "",
+        email: (ext?.emails && ext.emails.length > 0 ? ext.emails[0] : p.email) || user?.email || "",
         phone: p.phone || "",
         headline: p.headline || "",
         location: p.location || "",

@@ -11,12 +11,14 @@ interface AuthState {
   user: UserProfile | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isSaving: boolean;
   error: string | null;
 
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   fetchMe: () => Promise<void>;
+  updateProfile: (data: Partial<UserProfile>) => Promise<void>;
   setUser: (user: UserProfile) => void;
   clearError: () => void;
 }
@@ -46,6 +48,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isAuthenticated: false,
       isLoading: false,
+      isSaving: false,
       error: null,
 
       login: async (email: string, password: string) => {
@@ -94,6 +97,18 @@ export const useAuthStore = create<AuthState>()(
           // Token is invalid – force a clean logout
           clearTokens();
           set({ user: null, isAuthenticated: false, isLoading: false });
+        }
+      },
+
+      updateProfile: async (data: Partial<UserProfile>) => {
+        set({ isSaving: true, error: null });
+        try {
+          const updated = await authApi.patchMe(data);
+          set({ user: updated, isSaving: false });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : "Failed to save profile.";
+          set({ isSaving: false, error: message });
+          throw err;
         }
       },
 
