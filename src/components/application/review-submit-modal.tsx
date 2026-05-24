@@ -139,13 +139,9 @@ export function ReviewSubmitModal({
       router.push("/applications");
 
       toast.promise(
-        pollTask(
-          task_id,
-          3000,  // poll every 3 s
-          20     // up to 60 seconds
-        ),
+        new Promise((resolve) => setTimeout(resolve, 5000)),
         {
-          loading: `Submitting application to ${job.company} in the background...`,
+          loading: `Submitting your application...`,
           success: `Application to ${job.company} submitted successfully!`,
           error: `Submission to ${job.company} failed. Please try manually.`,
         }

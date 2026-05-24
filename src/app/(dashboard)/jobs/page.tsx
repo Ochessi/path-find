@@ -408,7 +408,7 @@ function FilterSidebar({
 // ---------------------------------------------------------------------------
 // Pagination component
 // ---------------------------------------------------------------------------
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 20;
 
 function Pagination({
   currentPage,
@@ -524,6 +524,7 @@ export default function JobsPage() {
   const [jobType, setJobType] = React.useState("All Types");
   const [salaryRange, setSalaryRange] = React.useState<[number, number]>([0, 500000]);
   const [remoteOnly, setRemoteOnly] = React.useState(false);
+  const [isFiltersOpen, setIsFiltersOpen] = React.useState(true);
 
   // Debounce filter changes → always reset to page 1
   React.useEffect(() => {
@@ -610,6 +611,21 @@ export default function JobsPage() {
     }
   };
 
+  const uniqueJobs = React.useMemo(() => {
+    const seen = new Set<string>();
+    return jobs.filter((job) => {
+      if (seen.has(job.id)) return false;
+      seen.add(job.id);
+      return true;
+    });
+  }, [jobs]);
+
+  const isBackendPaginated = uniqueJobs.length < totalCount && uniqueJobs.length <= PAGE_SIZE;
+
+  const displayedJobs = isBackendPaginated 
+    ? uniqueJobs 
+    : uniqueJobs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)]">
       {/* Page Header */}
@@ -657,26 +673,42 @@ export default function JobsPage() {
       </div>
 
       {/* Body */}
-      <div className="flex gap-8 flex-1 min-h-0 overflow-hidden">
-        {/* Sidebar */}
-        <FilterSidebar
-          keyword={keyword}
-          setKeyword={setKeyword}
-          location={location}
-          setLocation={setLocation}
-          industry={industry}
-          setIndustry={setIndustry}
-          experienceLevel={experienceLevel}
-          setExperienceLevel={setExperienceLevel}
-          jobType={jobType}
-          setJobType={setJobType}
-          salaryRange={salaryRange}
-          setSalaryRange={setSalaryRange}
-          remoteOnly={remoteOnly}
-          setRemoteOnly={setRemoteOnly}
-          onReset={resetFilters}
-          activeFilters={activeFilters}
-        />
+      <div className="flex gap-8 flex-1 min-h-0 overflow-hidden relative">
+        {/* Sidebar Area */}
+        <div className="hidden lg:flex h-full items-center relative">
+          {isFiltersOpen && (
+            <FilterSidebar
+              keyword={keyword}
+              setKeyword={setKeyword}
+              location={location}
+              setLocation={setLocation}
+              industry={industry}
+              setIndustry={setIndustry}
+              experienceLevel={experienceLevel}
+              setExperienceLevel={setExperienceLevel}
+              jobType={jobType}
+              setJobType={setJobType}
+              salaryRange={salaryRange}
+              setSalaryRange={setSalaryRange}
+              remoteOnly={remoteOnly}
+              setRemoteOnly={setRemoteOnly}
+              onReset={resetFilters}
+              activeFilters={activeFilters}
+            />
+          )}
+
+          {/* Toggle Button */}
+          <div className={cn("flex flex-col justify-center h-full z-10", isFiltersOpen ? "-ml-4" : "mr-4")}>
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+              className="h-8 w-8 rounded-full bg-background border shadow-sm"
+            >
+              {isFiltersOpen ? <ChevronLeft className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
 
         {/* Grid */}
         <div className="flex-1 overflow-y-auto pr-1 pb-8 [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border [&::-webkit-scrollbar-thumb]:rounded-full">
@@ -689,7 +721,7 @@ export default function JobsPage() {
               <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full mb-3" />
               <p className="font-medium">Loading jobs...</p>
             </div>
-          ) : jobs.length === 0 ? (
+          ) : displayedJobs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-64 text-center text-muted-foreground border border-dashed rounded-2xl">
               <Search className="h-8 w-8 mb-3 opacity-40" />
               <p className="font-medium">No jobs found</p>
@@ -701,7 +733,7 @@ export default function JobsPage() {
           ) : (
             <AnimatePresence mode="popLayout">
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                {jobs.map((job: Job) => (
+                {displayedJobs.map((job: Job) => (
                   <JobGridCard
                     key={job.id}
                     job={job}
