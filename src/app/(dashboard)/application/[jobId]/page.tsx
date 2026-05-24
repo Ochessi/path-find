@@ -261,7 +261,7 @@ export default function ApplicationPage() {
         </div>
       </div>
 
-      <ReviewSubmitModal job={job} open={isReviewOpen} onOpenChange={setIsReviewOpen} />
+      <ReviewSubmitModal job={job} application={application} open={isReviewOpen} onOpenChange={setIsReviewOpen} />
     </>
   );
 }

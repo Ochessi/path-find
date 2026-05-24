@@ -17,6 +17,7 @@ import {
   XCircle,
   Bot,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   Dialog,
@@ -29,13 +30,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Job } from "@/types";
 import { useApplicationStore } from "@/store/application.store";
-import { applicationsApi } from "@/lib/api/applications";
+import { applicationsApi, ApplicationResponse } from "@/lib/api/applications";
 import { pollTask } from "@/lib/api/tasks";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ReviewSubmitModalProps {
   job: Job;
+  application: ApplicationResponse | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -63,6 +65,7 @@ const STATUS_MESSAGES: Record<SubmitPhase, string> = {
 
 export function ReviewSubmitModal({
   job,
+  application,
   open,
   onOpenChange,
 }: ReviewSubmitModalProps) {
@@ -102,10 +105,8 @@ export function ReviewSubmitModal({
     setErrorMsg(null);
 
     try {
-      // ── Step 1: Create the Application record ──────────────────────────
-      // applicationsApi.create() returns the full Application object (including
-      // its server-assigned id) immediately — no secondary list call needed.
-      let appId = createdAppId;
+      // ── Step 1: Ensure Application record exists ──────────────────────────
+      let appId = createdAppId || application?.id;
       if (!appId) {
         setPhase("creating");
         const newApp = await applicationsApi.create({
@@ -121,53 +122,41 @@ export function ReviewSubmitModal({
         useApplicationStore.setState((s) => ({
           applications: [newApp, ...s.applications],
         }));
+      } else {
+        // If we already have an application, we just need to update its status
+        setPhase("creating");
+        await applicationsApi.patch(appId, {
+          status: "applied",
+        });
       }
 
       // ── Step 2: Enqueue the portal submission task ─────────────────────
       setPhase("queuing");
       const { task_id } = await applicationsApi.submitToPortal(appId);
 
-      // ── Step 3: Poll until done ────────────────────────────────────────
-      setPhase("pending");
+      // ── Step 3: Close modal and poll in background ─────────────────────
+      onOpenChange(false);
+      router.push("/applications");
 
-      try {
-        const result = await pollTask(
+      toast.promise(
+        pollTask(
           task_id,
           3000,  // poll every 3 s
-          20,    // up to 60 seconds (down from 5 mins)
-          (status) => {
-            // Live status updates while polling
-            if (status === "STARTED") setPhase("started");
-            else if (status === "PENDING" || status === "RETRY")
-              setPhase("pending");
-          }
-        );
-
-        if (result.status === "FAILURE") {
-          throw new Error(result.error || "Automation failed on the server.");
+          20     // up to 60 seconds
+        ),
+        {
+          loading: `Submitting application to ${job.company} in the background...`,
+          success: `Application to ${job.company} submitted successfully!`,
+          error: `Submission to ${job.company} failed. Please try manually.`,
         }
-      } catch (pollErr: any) {
-        // If it timed out, the background worker might be slow or down.
-        // We gracefully treat this as "Queued" instead of completely failing the UI,
-        // because the application IS saved and the task IS queued.
-        if (pollErr.message?.includes("timed out")) {
-          console.warn("Polling timed out, but task is queued in the background.");
-        } else {
-          throw pollErr;
-        }
-      }
+      );
 
-      setPhase("success");
-
-      // Navigate away after the success animation plays
+      // Reset modal state after a moment
       setTimeout(() => {
-        onOpenChange(false);
-        router.push("/applications");
-        setTimeout(() => {
-          setPhase("idle");
-          setCreatedAppId(null);
-        }, 500);
-      }, 2000);
+        setPhase("idle");
+        setCreatedAppId(null);
+      }, 500);
+
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : "Submission failed. Please try again.";
