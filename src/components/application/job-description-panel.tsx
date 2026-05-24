@@ -80,7 +80,10 @@ export function JobDescriptionPanel({ job }: JobDescriptionPanelProps) {
         <h3 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">
           About the role
         </h3>
-        <p className="text-sm leading-relaxed">{job.description}</p>
+        <div
+          className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none text-foreground"
+          dangerouslySetInnerHTML={{ __html: job.description }}
+        />
       </div>
 
       <Separator />
